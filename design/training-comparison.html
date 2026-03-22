@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Think. – Training: Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-900:#0D3B1E;--green-800:#14532D;--green-700:#166534;
+    --green-600:#16A34A;--green-500:#22C55E;--green-400:#4ADE80;
+    --green-100:#DCFCE7;--green-50:#F0FDF4;
+    --sand-50:#FAFAF8;--sand-100:#F5F5F0;--sand-200:#E8E8E0;
+    --sand-300:#D4D4C8;--sand-500:#8A8A7A;--sand-700:#5C5C4F;--sand-900:#2C2C24;
+    --white:#FFFFFF;
+    --red-50:#FEF2F2;--red-100:#FEE2E2;--red-500:#EF4444;--red-700:#B91C1C;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Inter',-apple-system,sans-serif;background:#E8E8E0;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+  .phone{width:390px;height:844px;background:var(--sand-50);border-radius:44px;overflow:hidden;position:relative;
+    box-shadow:0 0 0 1px rgba(0,0,0,.04),0 25px 50px -12px rgba(0,0,0,.15)}
+  .screen{width:100%;height:100%;overflow-y:auto;overflow-x:hidden;padding-bottom:110px}
+  .screen::-webkit-scrollbar{display:none}
+
+  .top-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px 10px}
+  .back-btn{font-size:14px;font-weight:600;color:var(--sand-500);cursor:pointer;display:flex;align-items:center;gap:4px}
+  .back-btn svg{width:16px;height:16px;stroke:var(--sand-500);fill:none;stroke-width:2}
+  .step-counter{font-size:12px;font-weight:700;color:var(--sand-300);letter-spacing:.5px}
+
+  .progress-track{height:3px;background:var(--sand-200);margin:0 24px;border-radius:2px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--green-800);border-radius:2px}
+
+  .content{padding:24px 24px 0}
+
+  /* Result Banner */
+  .result-banner{border-radius:18px;padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:24px}
+  .result-banner.match{background:var(--green-50);border:1.5px solid var(--green-100)}
+  .result-banner.miss{background:var(--red-50);border:1.5px solid var(--red-100)}
+  .result-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0}
+  .match .result-icon{background:var(--green-800);color:white}
+  .miss .result-icon{background:var(--red-500);color:white}
+  .result-body{flex:1}
+  .result-title{font-size:18px;font-weight:800;letter-spacing:-.3px;margin-bottom:4px}
+  .match .result-title{color:var(--green-800)}
+  .miss .result-title{color:var(--red-700)}
+  .result-detail{font-size:12px;font-weight:500;color:var(--sand-500);line-height:1.5}
+  .result-detail strong{font-weight:700;color:var(--sand-700)}
+
+  /* Compare Section */
+  .compare-label{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .compare-label .dot{width:6px;height:6px;border-radius:50%}
+  .label-mine{color:var(--green-800)}
+  .label-mine .dot{background:var(--green-500)}
+  .label-model{color:var(--sand-500)}
+  .label-model .dot{background:var(--sand-300)}
+
+  .compare-card{background:var(--white);border-radius:16px;padding:18px 20px;margin-bottom:20px;
+    box-shadow:0 1px 3px rgba(0,0,0,.03),0 4px 12px rgba(0,0,0,.03);border:1px solid rgba(0,0,0,.03)}
+  .compare-card.mine{border-left:3px solid var(--green-500)}
+  .compare-card.model{border-left:3px solid var(--sand-300)}
+  .compare-row{display:flex;margin-bottom:10px;gap:8px}
+  .compare-row:last-child{margin-bottom:0}
+  .row-label{font-size:11px;font-weight:700;color:var(--sand-500);width:48px;flex-shrink:0;padding-top:1px}
+  .row-value{font-size:13px;font-weight:500;color:var(--sand-700);line-height:1.5}
+
+  /* Insight */
+  .insight-card{background:var(--green-50);border:1px solid var(--green-100);border-radius:14px;padding:16px 18px;margin-bottom:20px}
+  .insight-title{font-size:12px;font-weight:800;color:var(--green-800);letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .insight-text{font-size:13px;font-weight:500;color:var(--green-800);line-height:1.6;opacity:.85}
+
+  .footer{position:absolute;bottom:0;left:0;right:0;padding:16px 24px 36px;background:linear-gradient(transparent,var(--sand-50) 20%)}
+  .cta-btn{width:100%;height:52px;border:none;border-radius:14px;background:var(--green-800);color:white;
+    font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(13,59,30,.25)}
+
+  .fade-up{animation:fade-up .6s cubic-bezier(.16,1,.3,1) both}
+  .d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.2s}.d4{animation-delay:.28s}.d5{animation-delay:.36s}.d6{animation-delay:.44s}
+  @keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="screen">
+    <div class="top-bar fade-up d1">
+      <div class="back-btn"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>뒤로</div>
+      <div class="step-counter">4 / 4</div>
+    </div>
+    <div class="progress-track fade-up d1"><div class="progress-fill" style="width:100%"></div></div>
+
+    <div class="content">
+      <!-- Result Banner -->
+      <div class="result-banner match fade-up d2">
+        <div class="result-icon">✓</div>
+        <div class="result-body">
+          <div class="result-title">개념 적중!</div>
+          <div class="result-detail">정답: <strong>해시맵</strong>  ·  내 선택: <strong>해시맵</strong></div>
+        </div>
+      </div>
+
+      <!-- My Flow -->
+      <div class="compare-label label-mine fade-up d3"><span class="dot"></span>내 풀이 흐름</div>
+      <div class="compare-card mine fade-up d3">
+        <div class="compare-row">
+          <div class="row-label">요약</div>
+          <div class="row-value">합이 target인 두 인덱스를 찾는 문제</div>
+        </div>
+        <div class="compare-row">
+          <div class="row-label">접근</div>
+          <div class="row-value">해시맵으로 complement 저장 후 1-pass</div>
+        </div>
+        <div class="compare-row">
+          <div class="row-label">복잡도</div>
+          <div class="row-value">O(n)</div>
+        </div>
+      </div>
+
+      <!-- Model Flow -->
+      <div class="compare-label label-model fade-up d4"><span class="dot"></span>모범 풀이 흐름</div>
+      <div class="compare-card model fade-up d4">
+        <div class="compare-row">
+          <div class="row-label">관찰</div>
+          <div class="row-value">정확히 하나의 해 존재, 같은 요소 재사용 불가</div>
+        </div>
+        <div class="compare-row">
+          <div class="row-label">접근</div>
+          <div class="row-value">해시맵에 값→인덱스 매핑, 순회하며 complement 탐색</div>
+        </div>
+        <div class="compare-row">
+          <div class="row-label">오답</div>
+          <div class="row-value">이중 루프 O(n²), 정렬 후 투포인터 (인덱스 소실)</div>
+        </div>
+        <div class="compare-row">
+          <div class="row-label">함정</div>
+          <div class="row-value">같은 인덱스를 두 번 사용하는 실수</div>
+        </div>
+        <div class="compare-row">
+          <div class="row-label">복잡도</div>
+          <div class="row-value">시간 O(n) · 공간 O(n)</div>
+        </div>
+      </div>
+
+      <!-- Insight -->
+      <div class="insight-card fade-up d5">
+        <div class="insight-title">💡 핵심 인사이트</div>
+        <div class="insight-text">
+          "정확히 하나의 해"라는 조건이 핵심이에요.
+          이 조건 덕분에 해시맵에 저장하면서 동시에 탐색하는
+          1-pass 전략이 가능합니다.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <button class="cta-btn">학습 완료하기 ✓</button>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Think. – Training: Solution Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-900:#0D3B1E; --green-800:#14532D; --green-700:#166534;
+    --green-600:#16A34A; --green-500:#22C55E; --green-400:#4ADE80;
+    --green-100:#DCFCE7; --green-50:#F0FDF4;
+    --sand-50:#FAFAF8; --sand-100:#F5F5F0; --sand-200:#E8E8E0;
+    --sand-300:#D4D4C8; --sand-500:#8A8A7A; --sand-700:#5C5C4F; --sand-900:#2C2C24;
+    --white:#FFFFFF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Inter',-apple-system,sans-serif;background:#E8E8E0;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+  .phone{width:390px;height:844px;background:var(--sand-50);border-radius:44px;overflow:hidden;position:relative;
+    box-shadow:0 0 0 1px rgba(0,0,0,.04),0 25px 50px -12px rgba(0,0,0,.15)}
+  .screen{width:100%;height:100%;overflow-y:auto;overflow-x:hidden;padding-bottom:110px}
+  .screen::-webkit-scrollbar{display:none}
+
+  .top-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px 10px}
+  .back-btn{font-size:14px;font-weight:600;color:var(--sand-500);cursor:pointer;display:flex;align-items:center;gap:4px}
+  .back-btn svg{width:16px;height:16px;stroke:var(--sand-500);fill:none;stroke-width:2}
+  .step-counter{font-size:12px;font-weight:700;color:var(--sand-300);letter-spacing:.5px}
+
+  .progress-track{height:3px;background:var(--sand-200);margin:0 24px;border-radius:2px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--green-800);border-radius:2px}
+
+  .content{padding:28px 24px 0}
+
+  .q-block{margin-bottom:28px}
+  .q-tag{font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--green-800);text-transform:uppercase;margin-bottom:6px}
+  .q-title{font-size:20px;font-weight:800;color:var(--sand-900);letter-spacing:-.5px;margin-bottom:10px}
+
+  .input-field{
+    width:100%;border:1.5px solid var(--sand-200);border-radius:14px;padding:14px 16px;
+    font-family:'Inter',sans-serif;font-size:14px;color:var(--sand-900);background:var(--white);
+    resize:none;outline:none;transition:border-color .2s;line-height:1.6;
+  }
+  .input-field:focus{border-color:var(--green-800)}
+  .input-field::placeholder{color:var(--sand-300)}
+  .input-single{height:48px}
+  .input-multi{height:88px}
+
+  /* Complexity chips */
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{
+    padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;
+    cursor:pointer;transition:all .2s;border:1.5px solid var(--sand-200);
+    background:var(--white);color:var(--sand-700);
+  }
+  .chip.selected{background:var(--green-800);color:white;border-color:var(--green-800);box-shadow:0 2px 8px rgba(13,59,30,.25)}
+
+  .divider{height:1px;background:var(--sand-200);margin:4px 0 28px}
+
+  .footer{position:absolute;bottom:0;left:0;right:0;padding:16px 24px 36px;background:linear-gradient(transparent,var(--sand-50) 20%)}
+  .cta-btn{width:100%;height:52px;border:none;border-radius:14px;background:var(--green-800);color:white;
+    font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(13,59,30,.25)}
+
+  .fade-up{animation:fade-up .6s cubic-bezier(.16,1,.3,1) both}
+  .d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.18s}.d4{animation-delay:.25s}.d5{animation-delay:.32s}
+  @keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="screen">
+    <div class="top-bar fade-up d1">
+      <div class="back-btn"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>뒤로</div>
+      <div class="step-counter">3 / 4</div>
+    </div>
+    <div class="progress-track fade-up d1"><div class="progress-fill" style="width:75%"></div></div>
+
+    <div class="content">
+      <div class="q-block fade-up d2">
+        <div class="q-tag">Q1</div>
+        <div class="q-title">문제를 한 문장으로 요약하면?</div>
+        <input class="input-field input-single" placeholder="이 문제는 ~를 구하는 문제다" />
+      </div>
+
+      <div class="q-block fade-up d3">
+        <div class="q-tag">Q2</div>
+        <div class="q-title">브루트포스로 풀 수 있는가?</div>
+        <textarea class="input-field input-multi" placeholder="가능 여부와 시간복잡도를 적어주세요"></textarea>
+      </div>
+
+      <div class="divider fade-up d3"></div>
+
+      <div class="q-block fade-up d4">
+        <div class="q-tag">Q3</div>
+        <div class="q-title">최종 접근 방식은?</div>
+        <textarea class="input-field input-multi" placeholder="면접관에게 설명하듯 적어주세요"></textarea>
+      </div>
+
+      <div class="q-block fade-up d5">
+        <div class="q-tag">Q4</div>
+        <div class="q-title">예상 시간복잡도는?</div>
+        <div class="chip-row">
+          <div class="chip">O(1)</div>
+          <div class="chip">O(log n)</div>
+          <div class="chip selected">O(n)</div>
+          <div class="chip">O(n log n)</div>
+          <div class="chip">O(n²)</div>
+          <div class="chip">O(2ⁿ)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <button class="cta-btn">결과 비교하기 →</button>
+  </div>
+</div>
+</body>
+</html>
