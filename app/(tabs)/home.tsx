@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
+  BackHandler,
+  ToastAndroid,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -159,9 +162,31 @@ export default function HomeScreen() {
   const { profile, refresh: refreshProfile } = useProfileData();
   const { goal: dailyGoal, enabled: goalEnabled, reload: reloadGoal } = useDailyGoal();
 
+  // Android 뒤로가기 두 번 누르면 앱 종료
+  const lastBackPress = useRef(0);
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+
+      const onBackPress = () => {
+        const now = Date.now();
+        if (now - lastBackPress.current < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+        lastBackPress.current = now;
+        ToastAndroid.show('한 번 더 누르면 앱이 종료됩니다', ToastAndroid.SHORT);
+        return true;
+      };
+
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [])
+  );
+
   // 탭 전환 시 데이터 새로고침
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       refresh();
       refreshProfile();
       reloadGoal();

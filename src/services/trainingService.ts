@@ -12,10 +12,7 @@ export async function getCurrentUserId(): Promise<string> {
   if (data.session?.user?.id) {
     return data.session.user.id;
   }
-  // 익명 로그인 (MVP: auto sign-in)
-  const { data: anonData, error } = await supabase.auth.signInAnonymously();
-  if (error) throw new Error(`Anonymous auth failed: ${error.message}`);
-  return anonData.user!.id;
+  throw new Error('Not authenticated');
 }
 
 // ── Problem ──
