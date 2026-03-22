@@ -39,11 +39,7 @@ const styles = StyleSheet.create({
   selected: {
     backgroundColor: COLORS.green800,
     borderColor: COLORS.green800,
-    shadowColor: 'rgb(13, 59, 30)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    boxShadow: '0px 2px 8px rgba(13, 59, 30, 0.25)',
   },
   pressed: {
     opacity: 0.7,

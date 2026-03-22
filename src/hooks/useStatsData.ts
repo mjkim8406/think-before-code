@@ -9,7 +9,7 @@ import {
   fetchConceptMastery,
   fetchMonthlyActivity,
   fetchWeeklyDailyActivity,
-  fetchDifficultyDistribution,
+  fetchCourseLevelDistribution,
   fetchStepAccuracy,
   fetchSolvedProblems,
   type StatsSummary,
@@ -17,7 +17,7 @@ import {
   type ConceptMasteryItem,
   type WeeklyActivity,
   type DailyActivity,
-  type DifficultyCount,
+  type CourseLevelCount,
   type StepAccuracy,
   type SolvedProblemItem,
 } from '@/src/services/statsService';
@@ -28,7 +28,7 @@ interface StatsData {
   conceptMastery: ConceptMasteryItem[];
   monthlyActivity: WeeklyActivity[];
   weeklyDaily: DailyActivity[];
-  difficultyDist: DifficultyCount;
+  levelDist: CourseLevelCount;
   stepAccuracy: StepAccuracy[];
   solvedProblems: SolvedProblemItem[];
   isLoading: boolean;
@@ -49,7 +49,7 @@ export function useStatsData(): StatsData {
   const [conceptMastery, setConceptMastery] = useState<ConceptMasteryItem[]>([]);
   const [monthlyActivity, setMonthlyActivity] = useState<WeeklyActivity[]>([]);
   const [weeklyDaily, setWeeklyDaily] = useState<DailyActivity[]>([]);
-  const [difficultyDist, setDifficultyDist] = useState<DifficultyCount>({ easy: 0, medium: 0, hard: 0 });
+  const [levelDist, setLevelDist] = useState<CourseLevelCount>({ beginner: 0, basic: 0, intermediate: 0, advanced: 0 });
   const [stepAccuracy, setStepAccuracy] = useState<StepAccuracy[]>([]);
   const [solvedProblems, setSolvedProblems] = useState<SolvedProblemItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,7 +66,7 @@ export function useStatsData(): StatsData {
         fetchConceptMastery(),
         fetchMonthlyActivity(),
         fetchWeeklyDailyActivity(),
-        fetchDifficultyDistribution(),
+        fetchCourseLevelDistribution(),
         fetchStepAccuracy(),
         fetchSolvedProblems(),
       ]);
@@ -76,7 +76,7 @@ export function useStatsData(): StatsData {
       setConceptMastery(mastery);
       setMonthlyActivity(activity);
       setWeeklyDaily(weekly);
-      setDifficultyDist(dist);
+      setLevelDist(dist);
       setStepAccuracy(steps);
       setSolvedProblems(solved);
     } catch (err: any) {
@@ -90,7 +90,7 @@ export function useStatsData(): StatsData {
 
   return {
     summary, categoryMastery, conceptMastery, monthlyActivity, weeklyDaily,
-    difficultyDist, stepAccuracy, solvedProblems,
+    levelDist, stepAccuracy, solvedProblems,
     isLoading, error, refresh: load,
   };
 }

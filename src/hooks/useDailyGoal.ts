@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStorage } from '@/src/lib/storage';
 
 const KEY = '@daily_goal';
 const KEY_ENABLED = '@daily_goal_enabled';
@@ -16,9 +16,10 @@ export function useDailyGoal() {
 
   const reload = useCallback(async () => {
     try {
+      const storage = getStorage();
       const [savedGoal, savedEnabled] = await Promise.all([
-        AsyncStorage.getItem(KEY),
-        AsyncStorage.getItem(KEY_ENABLED),
+        storage.getItem(KEY),
+        storage.getItem(KEY_ENABLED),
       ]);
       if (savedGoal !== null) setGoal(parseInt(savedGoal, 10));
       if (savedEnabled !== null) setEnabled(savedEnabled === 'true');
@@ -31,12 +32,12 @@ export function useDailyGoal() {
 
   const updateGoal = useCallback(async (newGoal: number) => {
     setGoal(newGoal);
-    try { await AsyncStorage.setItem(KEY, String(newGoal)); } catch {}
+    try { await getStorage().setItem(KEY, String(newGoal)); } catch {}
   }, []);
 
   const updateEnabled = useCallback(async (newEnabled: boolean) => {
     setEnabled(newEnabled);
-    try { await AsyncStorage.setItem(KEY_ENABLED, String(newEnabled)); } catch {}
+    try { await getStorage().setItem(KEY_ENABLED, String(newEnabled)); } catch {}
   }, []);
 
   return { goal, enabled, loaded, reload, updateGoal, updateEnabled };

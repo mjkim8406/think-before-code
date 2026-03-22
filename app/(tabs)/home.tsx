@@ -16,8 +16,10 @@ import { COLORS, FONTS } from '@/src/lib/constants';
 import { useHomeData } from '@/src/hooks/useHomeData';
 import { useProfileData } from '@/src/hooks/useProfileData';
 import { useDailyGoal } from '@/src/hooks/useDailyGoal';
-import { getInsightForTags } from '@/src/lib/insightCards';
 import type { ActivityDay } from '@/src/services/homeService';
+import { getTagLabel } from '@/src/lib/tagLabels';
+import type { RecommendationResult } from '@/src/lib/recommendation';
+import { COURSE_LEVEL_LABELS, MAIN_PATH } from '@/src/data/coursePaths';
 
 // ─── Logo ──────────────────────────────────────────────────────────────────
 function LogoIcon() {
@@ -153,7 +155,7 @@ function ActivityGrid({ activityDays }: { activityDays: ActivityDay[] }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
-  const { todaysProblem, streak, activityGrid, totalSolved, learningPath, isLoading, error, refresh } = useHomeData();
+  const { todaysProblem, streak, activityGrid, totalSolved, learningPath, recommendation, isLoading, error, refresh } = useHomeData();
   const { profile, refresh: refreshProfile } = useProfileData();
   const { goal: dailyGoal, enabled: goalEnabled, reload: reloadGoal } = useDailyGoal();
 
@@ -229,7 +231,7 @@ export default function HomeScreen() {
               <View style={styles.tagRow}>
                 {todaysProblem.tags.map((tag) => (
                   <View key={tag} style={styles.tagChip}>
-                    <Text style={styles.tagChipText}>{tag}</Text>
+                    <Text style={styles.tagChipText}>{getTagLabel(tag)}</Text>
                   </View>
                 ))}
               </View>
@@ -261,25 +263,156 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Insight Card — 오늘의 문제 태그 기반 알고리즘 설명 */}
-        {(() => {
-          const insight = getInsightForTags(
-            todaysProblem?.tags ?? [],
-            todaysProblem?.domain,
-          );
-          return (
-            <View style={styles.section}>
-              <View style={styles.insightCard}>
-                <View style={styles.insightTop}>
-                  <Text style={styles.insightLabel}>INSIGHT</Text>
-                  <Text style={{ fontSize: 14 }}>{insight.emoji}</Text>
+        {/* Recommendation Card — 코스 경로 기반 추천 */}
+        {recommendation && (
+          <View style={[styles.section, { marginBottom: 8 }]}>
+            <Text style={styles.sectionLabel}>COURSE PATH</Text>
+
+            {/* 코스 경로 진행률 바 (10 topics — compact 2-row) */}
+            <View style={styles.coursePathWrap}>
+              {(() => {
+                const currentOrder = MAIN_PATH.find(t => t.id === recommendation.courseProgress.currentTopic)?.order ?? 0;
+                const rowSize = Math.ceil(MAIN_PATH.length / 2);
+                return [0, rowSize].map((rowStart) => (
+                <View key={rowStart} style={styles.coursePathRow}>
+                  {MAIN_PATH.slice(rowStart, rowStart + rowSize).map((topic, idx) => {
+                    const globalIdx = rowStart + idx;
+                    const isCurrent = topic.id === recommendation.courseProgress.currentTopic;
+                    const isDone = topic.order < currentOrder;
+                    return (
+                      <View key={topic.id} style={styles.coursePathStep}>
+                        <View style={[
+                          styles.coursePathDot,
+                          isDone && styles.coursePathDotDone,
+                          isCurrent && styles.coursePathDotCurrent,
+                        ]}>
+                          {isDone && <Feather name="check" size={8} color={COLORS.white} />}
+                          {isCurrent && <Text style={styles.coursePathDotText}>{topic.emoji}</Text>}
+                          {!isDone && !isCurrent && <Text style={styles.coursePathDotTextDim}>{globalIdx + 1}</Text>}
+                        </View>
+                        <Text style={[
+                          styles.coursePathLabel,
+                          isDone && styles.coursePathLabelDone,
+                          isCurrent && styles.coursePathLabelCurrent,
+                        ]} numberOfLines={1}>{topic.label}</Text>
+                        {idx < rowSize - 1 && (
+                          <View style={[styles.coursePathLine, isDone && styles.coursePathLineDone]} />
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
-                <Text style={styles.insightTitle}>{insight.title}</Text>
-                <Text style={styles.insightDesc}>{insight.desc}</Text>
-              </View>
+                ));
+              })()}
             </View>
-          );
-        })()}
+
+            <Pressable
+              style={({ pressed }) => [styles.learningCard, pressed && { opacity: 0.9 }]}
+              onPress={() => {
+                router.push(`/(tabs)/library?category=${recommendation.primary.topic}` as any);
+              }}
+            >
+              <View style={styles.learningTop}>
+                <Text style={styles.learningBadge}>
+                  {COURSE_LEVEL_LABELS[recommendation.primary.level].toUpperCase()}
+                </Text>
+                <Feather name="compass" size={16} color="rgba(255,255,255,0.6)" />
+              </View>
+              <Text style={styles.learningTitle}>
+                {recommendation.primary.title}
+              </Text>
+              <Text style={styles.learningDesc}>
+                {recommendation.primary.reason}
+              </Text>
+              <View style={styles.courseStartBtn}>
+                <Text style={styles.courseStartBtnText}>Start Course</Text>
+                <Feather name="arrow-right" size={14} color={COLORS.green800} />
+              </View>
+            </Pressable>
+
+            {/* 추가 추천 카드들 */}
+            {recommendation.secondary.length > 0 && (
+              <View style={styles.secondaryRecs}>
+                {recommendation.secondary.map((rec, idx) => (
+                  <Pressable
+                    key={`rec-${idx}`}
+                    style={({ pressed }) => [styles.secondaryRecCard, pressed && { opacity: 0.8 }]}
+                    onPress={() => router.push(`/(tabs)/library?category=${rec.topic}` as any)}
+                  >
+                    <View style={styles.secondaryRecTop}>
+                      <Text style={styles.secondaryRecLevel}>
+                        {COURSE_LEVEL_LABELS[rec.level]}
+                      </Text>
+                      <Feather name="chevron-right" size={14} color={COLORS.textTertiary} />
+                    </View>
+                    <Text style={styles.secondaryRecTitle}>{rec.title}</Text>
+                    <Text style={styles.secondaryRecReason} numberOfLines={2}>
+                      {rec.reason}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Learning Path Card (fallback — 추천이 없을 때) */}
+        {!recommendation && (
+          <View style={[styles.section, { marginBottom: 8 }]}>
+            <Text style={styles.sectionLabel}>LEARNING PATH</Text>
+            <Pressable
+              style={({ pressed }) => [styles.learningCard, pressed && { opacity: 0.9 }]}
+              onPress={() => {
+                const tag = learningPath?.conceptTag;
+                if (tag) {
+                  router.push(`/(tabs)/library?category=${tag}` as any);
+                } else {
+                  router.push('/(tabs)/library' as any);
+                }
+              }}
+            >
+              <View style={styles.learningTop}>
+                <Text style={styles.learningBadge}>
+                  {learningPath && learningPath.problemsSolved > 0 ? 'IN PROGRESS' : 'RECOMMENDED'}
+                </Text>
+                <Feather name="book" size={16} color="rgba(255,255,255,0.6)" />
+              </View>
+              <Text style={styles.learningTitle}>
+                {learningPath?.label ?? 'Dynamic Programming'}
+              </Text>
+              <Text style={styles.learningDesc}>
+                {learningPath
+                  ? `${learningPath.problemsSolved} / ${learningPath.totalProblems} problems solved${learningPath.averageScore > 0 ? ` · Avg ${learningPath.averageScore}pts` : ''}`
+                  : '라이브러리에서 문제를 풀어보세요'}
+              </Text>
+              <View style={styles.learningProgressBg}>
+                <View
+                  style={[
+                    styles.learningProgressFill,
+                    {
+                      width: learningPath && learningPath.totalProblems > 0
+                        ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}%`
+                        : '0%',
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.learningFooter}>
+                <Text style={styles.learningProgress}>
+                  {learningPath && learningPath.totalProblems > 0
+                    ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}% complete`
+                    : 'Start learning'}
+                </Text>
+                <View style={styles.resumeBtn}>
+                  <Text style={styles.resumeBtnText}>
+                    {learningPath && learningPath.problemsSolved > 0 ? 'Resume Path' : 'Start Path'}
+                  </Text>
+                  <Feather name="arrow-right" size={12} color={COLORS.green800} />
+                </View>
+              </View>
+            </Pressable>
+          </View>
+        )}
 
         {/* Current Streak Card */}
         <View style={styles.section}>
@@ -360,62 +493,6 @@ export default function HomeScreen() {
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: COLORS.green800 }]} />
                 <Text style={styles.legendText}>Strong</Text>
-              </View>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Learning Path Card */}
-        <View style={[styles.section, { marginBottom: 8 }]}>
-          <Text style={styles.sectionLabel}>LEARNING PATH</Text>
-          <Pressable
-            style={({ pressed }) => [styles.learningCard, pressed && { opacity: 0.9 }]}
-            onPress={() => {
-              const tag = learningPath?.conceptTag;
-              if (tag) {
-                router.push(`/(tabs)/library?category=${tag}` as any);
-              } else {
-                router.push('/(tabs)/library' as any);
-              }
-            }}
-          >
-            <View style={styles.learningTop}>
-              <Text style={styles.learningBadge}>
-                {learningPath && learningPath.problemsSolved > 0 ? 'IN PROGRESS' : 'RECOMMENDED'}
-              </Text>
-              <Feather name="book" size={16} color="rgba(255,255,255,0.6)" />
-            </View>
-            <Text style={styles.learningTitle}>
-              {learningPath?.label ?? 'Dynamic Programming'}
-            </Text>
-            <Text style={styles.learningDesc}>
-              {learningPath
-                ? `${learningPath.problemsSolved} / ${learningPath.totalProblems} problems solved${learningPath.averageScore > 0 ? ` · Avg ${learningPath.averageScore}pts` : ''}`
-                : '라이브러리에서 문제를 풀어보세요'}
-            </Text>
-            <View style={styles.learningProgressBg}>
-              <View
-                style={[
-                  styles.learningProgressFill,
-                  {
-                    width: learningPath && learningPath.totalProblems > 0
-                      ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}%`
-                      : '0%',
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.learningFooter}>
-              <Text style={styles.learningProgress}>
-                {learningPath && learningPath.totalProblems > 0
-                  ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}% complete`
-                  : 'Start learning'}
-              </Text>
-              <View style={styles.resumeBtn}>
-                <Text style={styles.resumeBtnText}>
-                  {learningPath && learningPath.problemsSolved > 0 ? 'Resume Path' : 'Start Path'}
-                </Text>
-                <Feather name="arrow-right" size={12} color={COLORS.green800} />
               </View>
             </View>
           </Pressable>
@@ -505,11 +582,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: COLORS.surfaceBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.06)',
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -574,11 +647,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     backgroundColor: COLORS.green800,
-    shadowColor: 'rgba(1, 45, 29, 0.4)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 5,
+    boxShadow: '0px 4px 12px rgba(1, 45, 29, 0.4)',
   },
   startBtnText: {
     fontSize: 16,
@@ -601,51 +670,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: FONTS.bold,
     color: COLORS.green800,
-  },
-
-  // Insight Card
-  insightCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
-  },
-  insightTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  insightLabel: {
-    fontSize: 10,
-    fontFamily: FONTS.bold,
-    color: COLORS.green500,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  insightTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    letterSpacing: -0.4,
-    marginBottom: 6,
-  },
-  insightDesc: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.figmaSubtext,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  insightArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.sand100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-end',
   },
 
   // Streak Card
@@ -830,5 +854,135 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FONTS.semiBold,
     color: COLORS.green800,
+  },
+
+  // Course Start Button (full-width)
+  courseStartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.figmaEasyBg,
+  },
+  courseStartBtnText: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    color: COLORS.green800,
+  },
+
+  // Course Path Progress Bar (2-row × 5 compact layout)
+  coursePathWrap: {
+    marginBottom: 14,
+    gap: 8,
+  },
+  coursePathRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 2,
+  },
+  coursePathStep: {
+    alignItems: 'center',
+    flex: 1,
+    position: 'relative',
+  },
+  coursePathDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.sand100,
+    borderWidth: 1.5,
+    borderColor: COLORS.sand200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  coursePathDotDone: {
+    backgroundColor: COLORS.green500,
+    borderColor: COLORS.green500,
+  },
+  coursePathDotCurrent: {
+    backgroundColor: COLORS.green800,
+    borderColor: COLORS.green800,
+  },
+  coursePathDotText: {
+    fontSize: 10,
+    lineHeight: 14,
+  },
+  coursePathDotTextDim: {
+    fontSize: 9,
+    fontFamily: FONTS.bold,
+    color: COLORS.textTertiary,
+  },
+  coursePathLabel: {
+    fontSize: 8,
+    fontFamily: FONTS.medium,
+    color: COLORS.textTertiary,
+    marginTop: 3,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  coursePathLabelDone: {
+    color: COLORS.green600,
+    fontFamily: FONTS.semiBold,
+  },
+  coursePathLabelCurrent: {
+    color: COLORS.green800,
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+  },
+  coursePathLine: {
+    position: 'absolute',
+    top: 10,
+    left: '60%',
+    right: '-40%',
+    height: 1.5,
+    backgroundColor: COLORS.sand200,
+    zIndex: 0,
+  },
+  coursePathLineDone: {
+    backgroundColor: COLORS.green400,
+  },
+
+  // Secondary Recommendation Cards
+  secondaryRecs: {
+    gap: 10,
+    marginTop: 12,
+  },
+  secondaryRecCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+  },
+  secondaryRecTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  secondaryRecLevel: {
+    fontSize: 10,
+    fontFamily: FONTS.bold,
+    color: COLORS.green600,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  secondaryRecTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  secondaryRecReason: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
 });

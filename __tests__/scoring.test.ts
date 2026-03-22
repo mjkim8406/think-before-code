@@ -23,7 +23,7 @@ describe('scoreSingleSelect', () => {
   });
 });
 
-describe('scoreMultiSelect', () => {
+describe('scoreMultiSelect (continuous)', () => {
   const q = {
     type: 'multi_select' as const,
     question: 'Q?',
@@ -35,8 +35,15 @@ describe('scoreMultiSelect', () => {
     expect(scoreMultiSelect(q, ['a', 'b', 'c'])).toBe(1.0);
   });
 
-  it('returns 0.5 for partial match (2/3 correct, no wrong)', () => {
-    expect(scoreMultiSelect(q, ['a', 'b'])).toBe(0.5);
+  it('returns ~0.67 for 2/3 correct, no wrong', () => {
+    const score = scoreMultiSelect(q, ['a', 'b']);
+    expect(score).toBeCloseTo(0.67, 1);
+  });
+
+  it('returns ~0.52 for 2/3 correct + 1 wrong (penalty)', () => {
+    const score = scoreMultiSelect(q, ['a', 'b', 'd']);
+    // hitRatio = 2/3 = 0.667, penalty = 1 * 0.15 = 0.15, result = 0.517
+    expect(score).toBeCloseTo(0.52, 1);
   });
 
   it('returns 0.0 for all wrong', () => {
@@ -49,6 +56,11 @@ describe('scoreMultiSelect', () => {
 
   it('returns 0 for undefined', () => {
     expect(scoreMultiSelect(q, undefined)).toBe(0);
+  });
+
+  it('returns 1/3 for 1/3 correct, no wrong', () => {
+    const score = scoreMultiSelect(q, ['a']);
+    expect(score).toBeCloseTo(0.33, 1);
   });
 });
 
@@ -64,8 +76,8 @@ describe('scoreTagSelect', () => {
     expect(scoreTagSelect(q, ['y'])).toBe(1.0);
   });
 
-  it('returns 0.5 when no accepted tag selected', () => {
-    expect(scoreTagSelect(q, ['x'])).toBe(0.5);
+  it('returns 0.0 when no accepted tag selected', () => {
+    expect(scoreTagSelect(q, ['x'])).toBe(0.0);
   });
 
   it('returns 0 for empty/undefined', () => {
@@ -74,7 +86,7 @@ describe('scoreTagSelect', () => {
   });
 });
 
-describe('scoreOrderedSteps', () => {
+describe('scoreOrderedSteps (continuous)', () => {
   const q = {
     type: 'ordered_steps' as const,
     question: 'Q?',
@@ -91,15 +103,14 @@ describe('scoreOrderedSteps', () => {
     expect(scoreOrderedSteps(q, ['a', 'b', 'c', 'd'])).toBe(1.0);
   });
 
-  it('returns 0.5 for mostly correct (LCS >= 80%)', () => {
-    // LCS of [a, c, b, d] vs [a, b, c, d] = 3 → 3/4 = 0.75 → <0.8 → 0.0
-    expect(scoreOrderedSteps(q, ['a', 'c', 'b', 'd'])).toBe(0.0);
-    // LCS of [a, b, d, c] vs [a, b, c, d] = 3 → 0.75 → 0.0
-    expect(scoreOrderedSteps(q, ['a', 'b', 'd', 'c'])).toBe(0.0);
+  it('returns 0.75 for 3/4 LCS', () => {
+    // [a, c, b, d] vs [a, b, c, d] → LCS = 3 → 3/4 = 0.75
+    expect(scoreOrderedSteps(q, ['a', 'c', 'b', 'd'])).toBe(0.75);
   });
 
-  it('returns 0.0 for completely wrong', () => {
-    expect(scoreOrderedSteps(q, ['d', 'c', 'b', 'a'])).toBe(0.0);
+  it('returns 0.25 for reversed (LCS = 1)', () => {
+    // [d, c, b, a] vs [a, b, c, d] → LCS = 1 → 1/4 = 0.25
+    expect(scoreOrderedSteps(q, ['d', 'c', 'b', 'a'])).toBe(0.25);
   });
 
   it('returns 0 for empty', () => {
@@ -108,7 +119,7 @@ describe('scoreOrderedSteps', () => {
   });
 });
 
-describe('scoreEdgeCases', () => {
+describe('scoreEdgeCases (continuous)', () => {
   const q = {
     type: 'multi_select' as const,
     question: 'Q?',
@@ -123,11 +134,31 @@ describe('scoreEdgeCases', () => {
     expect(scoreEdgeCases(q, ['a', 'b', 'c', 'd'])).toBe(1.0);
   });
 
-  it('returns 0.5 for required only', () => {
-    expect(scoreEdgeCases(q, ['a', 'b'])).toBe(0.5);
+  it('returns ~0.85 for required + recommended only', () => {
+    const score = scoreEdgeCases(q, ['a', 'b', 'c']);
+    // req: 2/2 * 0.6 = 0.6, rec: 1/1 * 0.25 = 0.25, opt: 0/1 * 0.15 = 0
+    expect(score).toBeCloseTo(0.85, 2);
   });
 
-  it('returns 0.0 for nothing selected', () => {
+  it('returns 0.6 for required only', () => {
+    const score = scoreEdgeCases(q, ['a', 'b']);
+    // req: 2/2 * 0.6 = 0.6, rec: 0/1 * 0.25 = 0, opt: 0/1 * 0.15 = 0
+    expect(score).toBe(0.6);
+  });
+
+  it('penalizes trap selection', () => {
+    const score = scoreEdgeCases(q, ['a', 'b', 'e']);
+    // req: 0.6, rec: 0, opt: 0, trap: -0.1 = 0.5
+    expect(score).toBe(0.5);
+  });
+
+  it('returns 0.3 for 1/2 required only', () => {
+    const score = scoreEdgeCases(q, ['a']);
+    // req: 1/2 * 0.6 = 0.3, rec: 0, opt: 0
+    expect(score).toBe(0.3);
+  });
+
+  it('returns 0 for nothing selected', () => {
     expect(scoreEdgeCases(q, undefined)).toBe(0);
     expect(scoreEdgeCases(q, [])).toBe(0);
   });

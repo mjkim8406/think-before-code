@@ -27,8 +27,8 @@ interface LibraryData {
   submitSearch: () => void;
   activeCategory: string | null;
   setActiveCategory: (c: string | null) => void;
-  activeDifficulty: string | null;
-  setActiveDifficulty: (d: string | null) => void;
+  activeCourseLevel: string | null;
+  setActiveCourseLevel: (d: string | null) => void;
   refresh: () => void;
 }
 
@@ -42,7 +42,7 @@ export function useLibraryData(): LibraryData {
   const [search, setSearch] = useState('');
   const [committedSearch, setCommittedSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [activeDifficulty, setActiveDifficulty] = useState<string | null>(null);
+  const [activeCourseLevel, setActiveCourseLevel] = useState<string | null>(null);
 
   // 검색 실행 (enter/버튼 누를 때만)
   const submitSearch = useCallback(() => {
@@ -80,9 +80,9 @@ export function useLibraryData(): LibraryData {
       filterProblems(allProblems, {
         search: committedSearch || undefined,
         category: activeCategory ?? undefined,
-        difficulty: activeDifficulty ?? undefined,
+        courseLevel: activeCourseLevel ?? undefined,
       }),
-    [allProblems, committedSearch, activeCategory, activeDifficulty],
+    [allProblems, committedSearch, activeCategory, activeCourseLevel],
   );
 
   const categories = useMemo(() => extractCategories(allProblems), [allProblems]);
@@ -100,8 +100,8 @@ export function useLibraryData(): LibraryData {
     submitSearch,
     activeCategory,
     setActiveCategory,
-    activeDifficulty,
-    setActiveDifficulty,
+    activeCourseLevel,
+    setActiveCourseLevel,
     refresh: load,
   };
 }

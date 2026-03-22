@@ -27,6 +27,10 @@ import {
   TREE_V2,
   GEOMETRY_V2,
   GRAPH_V2,
+  COURSE_DATA_STRUCTURES,
+  COURSE_GRAPH,
+  COURSE_DP,
+  COURSE_GREEDY,
 } from './data/v2/index.js';
 import type { ProblemV2 } from './data/types.js';
 
@@ -39,16 +43,16 @@ const categoryName = categoryFlag ? args[args.indexOf(categoryFlag) + 1] : null;
 
 // ── 카테고리 맵 ──────────────────────────────────────────────
 const CATEGORY_MAP: Record<string, ProblemV2[]> = {
-  greedy: GREEDY_V2,
-  dp: DP_V2,
+  greedy: [...GREEDY_V2, ...COURSE_GREEDY],
+  dp: [...DP_V2, ...COURSE_DP],
   combinatorics: COMBINATORICS_V2,
-  'data-structures': DATA_STRUCTURES_V2,
+  'data-structures': [...DATA_STRUCTURES_V2, ...COURSE_DATA_STRUCTURES],
   sorting: SORTING_V2,
   search: SEARCH_V2,
   'number-theory': NUMBER_THEORY_V2,
   tree: TREE_V2,
   geometry: GEOMETRY_V2,
-  graph: GRAPH_V2,
+  graph: [...GRAPH_V2, ...COURSE_GRAPH],
 };
 
 // ── 데이터 검증 ──────────────────────────────────────────────
@@ -115,11 +119,12 @@ function validateProblem(p: ProblemV2): ValidationError[] {
           e('solution_flow', `correct_order의 "${oid}"가 steps_catalog에 없음`);
         }
       }
-      for (const cid of Array.from(catalogIds)) {
-        if (!orderIds.has(cid)) {
-          e('solution_flow', `steps_catalog의 "${cid}"가 correct_order에 없음`);
-        }
-      }
+      // steps_catalog에만 있고 correct_order에 없는 것은 distractor(함정 스텝)이므로 허용
+      // for (const cid of Array.from(catalogIds)) {
+      //   if (!orderIds.has(cid)) {
+      //     // distractor step — 정상
+      //   }
+      // }
     }
   }
 
@@ -184,6 +189,13 @@ for (const [catName, catProblems] of Object.entries(CATEGORY_MAP)) {
 }
 
 // ── ProblemV2 → DB row 변환 ──────────────────────────────────
+// ── difficulty → course_level 기본 매핑 ──────────────────────
+function defaultCourseLevel(difficulty: string): string {
+  if (difficulty === 'easy') return 'beginner';
+  if (difficulty === 'hard') return 'intermediate';
+  return 'basic';
+}
+
 function toDbRow(p: ProblemV2) {
   return {
     id: p.id,
@@ -193,6 +205,7 @@ function toDbRow(p: ProblemV2) {
     summary: p.summary,
     tags: p.tags,
     category: ID_TO_CATEGORY.get(p.id) ?? 'uncategorized',
+    course_level: (p as any).course_level ?? defaultCourseLevel(p.difficulty),
     input_type: p.input_type,
     output_type: p.output_type,
     constraints: p.constraints,

@@ -24,7 +24,7 @@ function LogoIcon() {
 export default function StatsScreen() {
   const router = useRouter();
   const [activityTab, setActivityTab] = useState<'week' | 'month'>('month');
-  const { summary, categoryMastery, conceptMastery, monthlyActivity, weeklyDaily, difficultyDist, stepAccuracy, solvedProblems, isLoading, error, refresh } = useStatsData();
+  const { summary, categoryMastery, conceptMastery, monthlyActivity, weeklyDaily, levelDist, stepAccuracy, solvedProblems, isLoading, error, refresh } = useStatsData();
   const [showPrecision, setShowPrecision] = useState(false);
   const [showSolved, setShowSolved] = useState(false);
   const [showMastery, setShowMastery] = useState(false);
@@ -47,10 +47,10 @@ export default function StatsScreen() {
   );
 
   const maxBarCount = Math.max(...monthlyActivity.map((w) => w.count), 1);
-  const totalDiffCount = difficultyDist.easy + difficultyDist.medium + difficultyDist.hard;
+  const totalLevelCount = levelDist.beginner + levelDist.basic + levelDist.intermediate + levelDist.advanced;
 
-  const diffPercent = (count: number) =>
-    totalDiffCount > 0 ? Math.round((count / totalDiffCount) * 100) : 0;
+  const levelPercent = (count: number) =>
+    totalLevelCount > 0 ? Math.round((count / totalLevelCount) * 100) : 0;
 
   if (isLoading) {
     return (
@@ -175,17 +175,20 @@ export default function StatsScreen() {
               </View>
             ) : (
               <View style={styles.masteryList}>
-                {categoryMastery.map((item) => (
-                  <View key={item.category} style={styles.masteryItem}>
-                    <View style={styles.masteryTop}>
-                      <Text style={styles.masteryName}>{item.label}</Text>
-                      <Text style={styles.masteryMeta}>{item.solved}/{item.total}</Text>
+                {categoryMastery.map((item) => {
+                  const completionPct = item.total > 0 ? Math.round((item.solved / item.total) * 100) : 0;
+                  return (
+                    <View key={item.category} style={styles.masteryItem}>
+                      <View style={styles.masteryTop}>
+                        <Text style={styles.masteryName}>{item.label}</Text>
+                        <Text style={styles.masteryMeta}>{item.solved}/{item.total}</Text>
+                      </View>
+                      <View style={styles.masteryTrack}>
+                        <View style={[styles.masteryFill, { width: `${completionPct}%` }]} />
+                      </View>
                     </View>
-                    <View style={styles.masteryTrack}>
-                      <View style={[styles.masteryFill, { width: `${item.averageScore}%` }]} />
-                    </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           </Pressable>
@@ -310,74 +313,75 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {/* Intensity Distribution */}
+        {/* Level Distribution */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitleFull}>Intensity Distribution</Text>
+          <Text style={styles.sectionTitleFull}>Level Distribution</Text>
 
-          {/* Easy */}
+          {/* 입문 */}
+          <View style={[styles.intensityCard, { backgroundColor: 'rgba(219, 234, 254, 0.8)', borderColor: 'rgba(59, 130, 246, 0.05)' }]}>
+            <View>
+              <Text style={[styles.intensityLabel, { color: '#1e40af' }]}>입문</Text>
+              <Text style={[styles.intensityCount, { color: '#1e3a5f' }]}>{levelDist.beginner}</Text>
+            </View>
+            <View style={[styles.intensityCircle, { borderColor: 'rgba(30, 64, 175, 0.2)' }]}>
+              <Text style={[styles.intensityPercent, { color: '#1e40af' }]}>{levelPercent(levelDist.beginner)}%</Text>
+            </View>
+          </View>
+
+          {/* 기초 */}
           <View style={[styles.intensityCard, { backgroundColor: 'rgba(193, 236, 212, 0.8)', borderColor: 'rgba(6, 78, 59, 0.05)' }]}>
             <View>
-              <Text style={[styles.intensityLabel, { color: '#274e3d' }]}>Easy</Text>
-              <Text style={[styles.intensityCount, { color: '#002114' }]}>{difficultyDist.easy}</Text>
+              <Text style={[styles.intensityLabel, { color: '#274e3d' }]}>기초</Text>
+              <Text style={[styles.intensityCount, { color: '#002114' }]}>{levelDist.basic}</Text>
             </View>
             <View style={[styles.intensityCircle, { borderColor: 'rgba(39, 78, 61, 0.2)' }]}>
-              <Text style={styles.intensityPercent}>{diffPercent(difficultyDist.easy)}%</Text>
+              <Text style={styles.intensityPercent}>{levelPercent(levelDist.basic)}%</Text>
             </View>
           </View>
 
-          {/* Medium */}
+          {/* 중급 */}
           <View style={[styles.intensityCard, { backgroundColor: 'rgba(242, 232, 207, 0.8)', borderColor: 'rgba(139, 94, 60, 0.05)' }]}>
             <View>
-              <Text style={[styles.intensityLabel, { color: '#8b5e3c' }]}>Medium</Text>
-              <Text style={[styles.intensityCount, { color: '#8b5e3c' }]}>{difficultyDist.medium}</Text>
+              <Text style={[styles.intensityLabel, { color: '#8b5e3c' }]}>중급</Text>
+              <Text style={[styles.intensityCount, { color: '#8b5e3c' }]}>{levelDist.intermediate}</Text>
             </View>
             <View style={[styles.intensityCircle, { borderColor: 'rgba(139, 94, 60, 0.2)' }]}>
-              <Text style={[styles.intensityPercent, { color: '#8b5e3c' }]}>{diffPercent(difficultyDist.medium)}%</Text>
+              <Text style={[styles.intensityPercent, { color: '#8b5e3c' }]}>{levelPercent(levelDist.intermediate)}%</Text>
             </View>
           </View>
 
-          {/* Hard */}
+          {/* 실전 */}
           <View style={[styles.intensityCard, { backgroundColor: 'rgba(255, 218, 216, 0.8)', borderColor: 'rgba(103, 58, 57, 0.05)' }]}>
             <View>
-              <Text style={[styles.intensityLabel, { color: '#673a39' }]}>Hard</Text>
-              <Text style={[styles.intensityCount, { color: '#673a39' }]}>{difficultyDist.hard}</Text>
+              <Text style={[styles.intensityLabel, { color: '#673a39' }]}>실전</Text>
+              <Text style={[styles.intensityCount, { color: '#673a39' }]}>{levelDist.advanced}</Text>
             </View>
             <View style={[styles.intensityCircle, { borderColor: 'rgba(103, 58, 57, 0.2)' }]}>
-              <Text style={[styles.intensityPercent, { color: '#673a39' }]}>{diffPercent(difficultyDist.hard)}%</Text>
+              <Text style={[styles.intensityPercent, { color: '#673a39' }]}>{levelPercent(levelDist.advanced)}%</Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      {/* Concept Mastery Detail Modal — 태그 기반 상세 */}
+      {/* Concept Mastery Detail Modal — 태그별 풀이 개수 */}
       <Modal visible={showMastery} transparent animationType="slide" onRequestClose={() => setShowMastery(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>태그별 상세 마스터리</Text>
-            <Text style={styles.modalDesc}>풀이한 문제의 세부 태그별 평균 점수입니다</Text>
+            <Text style={styles.modalTitle}>태그별 풀이 현황</Text>
+            <Text style={styles.modalDesc}>세부 태그별 풀이 개수입니다</Text>
             {conceptMastery.length === 0 ? (
               <Text style={styles.modalEmpty}>아직 풀이 기록이 없습니다</Text>
             ) : (
               <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-                {conceptMastery.map((item) => {
-                  const score = Math.round(item.averageScore);
-                  const color = score >= 80 ? COLORS.green800 : score >= 50 ? '#D97706' : COLORS.error;
-                  return (
-                    <View key={item.conceptTag} style={styles.stepRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.stepLabel}>{getTagLabel(item.conceptTag)}</Text>
-                        <View style={styles.stepTrack}>
-                          <View style={[styles.stepFill, { width: `${score}%`, backgroundColor: color }]} />
-                        </View>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={[styles.stepScore, { color }]}>{score}%</Text>
-                        <Text style={styles.masteryMetaSmall}>{item.problemsSolved}문제</Text>
-                      </View>
+                {conceptMastery.map((item) => (
+                  <View key={item.conceptTag} style={styles.tagRow}>
+                    <Text style={styles.tagLabel}>{getTagLabel(item.conceptTag)}</Text>
+                    <View style={styles.tagCountBadge}>
+                      <Text style={styles.tagCountText}>{item.problemsSolved}문제</Text>
                     </View>
-                  );
-                })}
+                  </View>
+                ))}
               </ScrollView>
             )}
             <Pressable style={styles.modalCloseBtn} onPress={() => setShowMastery(false)}>
@@ -697,5 +701,32 @@ const styles = StyleSheet.create({
   },
   solvedScore: {
     fontFamily: FONTS.black, fontSize: 16,
+  },
+
+  // Tag detail rows (mastery modal)
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.sand100,
+  },
+  tagLabel: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+    color: '#1a1c1c',
+    flex: 1,
+  },
+  tagCountBadge: {
+    backgroundColor: COLORS.green50,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  tagCountText: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: COLORS.green800,
   },
 });

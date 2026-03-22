@@ -41,11 +41,7 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: COLORS.green800,
-    shadowColor: 'rgb(13, 59, 30)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 4,
+    boxShadow: '0px 4px 12px rgba(13, 59, 30, 0.25)',
   },
   secondary: {
     backgroundColor: 'transparent',
@@ -61,9 +57,7 @@ const styles = StyleSheet.create({
   },
   disabled: {
     backgroundColor: COLORS.sand300,
-    shadowColor: 'transparent',
-    shadowOpacity: 0,
-    elevation: 0,
+    boxShadow: 'none',
   },
   text: {
     fontSize: 15,

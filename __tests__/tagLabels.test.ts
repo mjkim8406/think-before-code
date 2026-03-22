@@ -7,9 +7,13 @@ describe('getTagLabel', () => {
     expect(getTagLabel('interval_pairs')).toBe('구간 쌍 (시작, 끝)');
   });
 
-  it('formats category-level tags via fallback', () => {
-    // 'greedy' is not in TAG_LABELS directly → fallback capitalization
-    expect(getTagLabel('greedy')).toBe('Greedy');
+  it('returns Korean for newly added tags', () => {
+    expect(getTagLabel('greedy')).toBe('그리디');
+    expect(getTagLabel('sorting')).toBe('정렬');
+    expect(getTagLabel('heap')).toBe('힙');
+  });
+
+  it('formats unmapped tags via fallback', () => {
     expect(getTagLabel('dynamic-programming')).toBe('Dynamic-programming');
   });
 

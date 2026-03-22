@@ -390,11 +390,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     backgroundColor: COLORS.green800,
-    shadowColor: 'rgba(1, 45, 29, 0.4)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 5,
+    boxShadow: '0px 4px 12px rgba(1, 45, 29, 0.4)',
   },
   startBtnText: {
     fontSize: 16,

@@ -192,11 +192,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.03)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 2,
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.03)',
   },
   problemHeader: {
     flexDirection: 'row',

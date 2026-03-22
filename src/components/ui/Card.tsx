@@ -22,11 +22,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 20,
     // Shadow: 0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.03)
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 12,
-    elevation: 2,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.03)',
     // Border: 1px solid rgba(0,0,0,0.03)
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.03)',

@@ -54,6 +54,7 @@ export interface EdgeCasesStep {
   required_answers: string[];      // 필수 — 누락 시 🔴
   recommended_answers: string[];   // 권장 — 누락 시 🟡
   optional_answers: string[];      // 추가 고려 — 선택 시 보너스
+  trap_answers?: string[];         // 함정 — 선택 시 감점
 }
 
 // ─── Training Flow Steps ───────────────────────────────────────────────────

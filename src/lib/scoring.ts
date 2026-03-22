@@ -1,7 +1,9 @@
 /**
  * Scoring logic for each question type
  *
- * Score scale: 1.0 (perfect) | 0.5 (partial) | 0.0 (wrong)
+ * Score scale: continuous 0.0 ~ 1.0
+ *   - 연속적 점수로 세밀한 평가 (기존 3단계 → 비율 기반)
+ *   - 단, UI 표시는 Perfect(≥0.8) / Partial(≥0.4) / Miss(<0.4) 3단계
  */
 
 import type {
@@ -26,7 +28,11 @@ export function scoreSingleSelect(
   return question.accepted_answers.includes(answer) ? 1.0 : 0.0;
 }
 
-/** multi_select: overlap ratio → 1.0 / 0.5 / 0.0 */
+/**
+ * multi_select: 비율 기반 연속 점수
+ *   - hitRatio (맞춘 비율)에서 penalty (오답 비율)를 차감
+ *   - 최소 0, 최대 1.0
+ */
 export function scoreMultiSelect(
   question: MultiSelect,
   answers: string[] | undefined,
@@ -37,30 +43,32 @@ export function scoreMultiSelect(
 
   const hits = answers.filter((a) => accepted.has(a)).length;
   const misses = answers.filter((a) => !accepted.has(a)).length;
-  const missed = question.accepted_answers.filter((a) => !selected.has(a)).length;
 
   // Perfect match
   if (hits === accepted.size && misses === 0) return 1.0;
 
-  // Partial: at least half of accepted + not too many wrong
+  // 비율 기반: 맞춘 비율 - 오답 페널티
   const hitRatio = hits / accepted.size;
-  const missRatio = misses / Math.max(selected.size, 1);
+  const penalty = misses * 0.15; // 오답 1개당 15% 차감
 
-  if (hitRatio >= 0.6 && missRatio <= 0.4) return 0.5;
-  return 0.0;
+  return Math.max(0, Math.min(1.0, hitRatio - penalty));
 }
 
-/** tag_select: any accepted tag selected = 1.0 */
+/** tag_select: any accepted tag selected = 1.0, else 0.0 */
 export function scoreTagSelect(
   question: TagSelect,
   answers: string[] | undefined,
 ): number {
   if (!answers || answers.length === 0) return 0;
   const accepted = new Set(question.accepted_answers);
-  return answers.some((a) => accepted.has(a)) ? 1.0 : 0.5; // tag_select는 관대하게
+  return answers.some((a) => accepted.has(a)) ? 1.0 : 0.0;
 }
 
-/** ordered_steps: LCS-based scoring */
+/**
+ * ordered_steps: LCS 비율 기반 연속 점수
+ *   - 완벽 순서 = 1.0
+ *   - LCS 비율을 그대로 점수에 반영 (0~1 범위)
+ */
 export function scoreOrderedSteps(
   question: OrderedSteps,
   userOrder: string[] | undefined,
@@ -70,15 +78,18 @@ export function scoreOrderedSteps(
 
   if (JSON.stringify(userOrder) === JSON.stringify(correct)) return 1.0;
 
-  // LCS length
+  // LCS 비율을 연속 점수로
   const lcs = longestCommonSubsequence(userOrder, correct);
   const ratio = lcs / correct.length;
 
-  if (ratio >= 0.8) return 0.5;
-  return 0.0;
+  // 비율 그대로 사용 (0.67이면 0.67점)
+  return Math.round(ratio * 100) / 100;
 }
 
-/** edge_cases: tiered scoring (required 70% + recommended 20% + optional 10%) */
+/**
+ * edge_cases: 가중 비율 기반 연속 점수
+ *   required 60% + recommended 25% + optional 15%
+ */
 export function scoreEdgeCases(
   question: EdgeCasesStep,
   selected: string[] | undefined,
@@ -92,16 +103,26 @@ export function scoreEdgeCases(
   const recTotal = question.recommended_answers?.length || 0;
   const recHits = (question.recommended_answers || []).filter((a) => sel.has(a)).length;
 
+  const optTotal = question.optional_answers?.length || 0;
   const optHits = (question.optional_answers || []).filter((a) => sel.has(a)).length;
 
-  const reqScore = reqTotal > 0 ? (reqHits / reqTotal) * 0.7 : 0.7;
-  const recScore = recTotal > 0 ? (recHits / recTotal) * 0.2 : 0.2;
-  const optScore = optHits > 0 ? 0.1 : 0;
+  // trap 선택 시 페널티 (trap_answers가 있는 경우만)
+  const trapAnswers: string[] = question.trap_answers ?? [];
+  const trapHits = trapAnswers.filter((a: string) => sel.has(a)).length;
+  const trapPenalty = trapHits * 0.1;
 
-  const raw = reqScore + recScore + optScore;
-  if (raw >= 0.85) return 1.0;
-  if (raw >= 0.5) return 0.5;
-  return 0.0;
+  // 가중치 동적 재배분: 없는 카테고리의 가중치를 required에 합산
+  const hasRec = recTotal > 0;
+  const hasOpt = optTotal > 0;
+  const reqWeight = 0.6 + (hasRec ? 0 : 0.25) + (hasOpt ? 0 : 0.15);
+  const recWeight = hasRec ? 0.25 : 0;
+  const optWeight = hasOpt ? 0.15 : 0;
+
+  const reqScore = reqTotal > 0 ? (reqHits / reqTotal) * reqWeight : reqWeight;
+  const recScore = hasRec ? (recHits / recTotal) * recWeight : 0;
+  const optScore = hasOpt ? (optHits / optTotal) * optWeight : 0;
+
+  return Math.max(0, Math.min(1.0, reqScore + recScore + optScore - trapPenalty));
 }
 
 // ── Per-step scoring ──

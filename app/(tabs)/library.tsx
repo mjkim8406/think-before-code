@@ -19,6 +19,8 @@ import { useLibraryData } from '@/src/hooks/useLibraryData';
 import { useBookmarks } from '@/src/hooks/useBookmarks';
 import { useProfileData } from '@/src/hooks/useProfileData';
 import { getTagLabel } from '@/src/lib/tagLabels';
+import { COURSE_TOPIC_LABELS, COURSE_LEVEL_LABELS } from '@/src/data/coursePaths';
+import type { CourseLevel } from '@/src/data/coursePaths';
 import type { LibraryProblemRow } from '@/src/services/libraryService';
 
 // ─── Shared Logo ─────────────────────────────────────────────────────────
@@ -37,17 +39,22 @@ const logo = StyleSheet.create({
   ch: { fontSize: 26, fontFamily: FONTS.black, letterSpacing: -1, lineHeight: 30, marginRight: -2 },
 });
 
-// ─── Difficulty Badge ────────────────────────────────────────────────────
-function DifficultyBadge({ difficulty }: { difficulty: 'easy' | 'medium' | 'hard' }) {
+// ─── Level Badge (코스 레벨: 입문/기초/중급/실전) ─────────────────────────
+function LevelBadge({ courseLevel, difficulty }: { courseLevel: CourseLevel | null; difficulty: 'easy' | 'medium' | 'hard' }) {
+  // course_level이 있으면 사용, 없으면 difficulty에서 추론
+  const level: CourseLevel = courseLevel ?? (
+    difficulty === 'easy' ? 'beginner' : difficulty === 'medium' ? 'basic' : 'intermediate'
+  );
   const config = {
-    easy: { bg: COLORS.figmaEasyBg, text: COLORS.figmaEasyText, label: 'Easy' },
-    medium: { bg: COLORS.figmaMediumBg, text: COLORS.figmaMediumText, label: 'Medium' },
-    hard: { bg: COLORS.figmaHardBg, text: COLORS.figmaHardText, label: 'Hard' },
-  }[difficulty];
+    beginner: { bg: COLORS.figmaEasyBg, text: COLORS.figmaEasyText },
+    basic: { bg: '#EFF6FF', text: '#2563EB' },
+    intermediate: { bg: COLORS.figmaMediumBg, text: COLORS.figmaMediumText },
+    advanced: { bg: COLORS.figmaHardBg, text: COLORS.figmaHardText },
+  }[level];
 
   return (
     <View style={[styles.diffBadge, { backgroundColor: config.bg }]}>
-      <Text style={[styles.diffBadgeText, { color: config.text }]}>{config.label}</Text>
+      <Text style={[styles.diffBadgeText, { color: config.text }]}>{COURSE_LEVEL_LABELS[level]}</Text>
     </View>
   );
 }
@@ -89,7 +96,7 @@ function ProblemCard({
               color={isBookmarked ? COLORS.green800 : COLORS.sand300}
             />
           </Pressable>
-          <DifficultyBadge difficulty={problem.difficulty} />
+          <LevelBadge courseLevel={problem.courseLevel} difficulty={problem.difficulty} />
         </View>
       </View>
       <Text style={styles.problemTitle}>{problem.title}</Text>
@@ -110,17 +117,12 @@ function ProblemCard({
 // ─── Category Tabs ───────────────────────────────────────────────────────
 const BOOKMARK_FILTER_KEY = '__bookmarked__';
 
-// key = DB category 컬럼 값 (파일명 기준)
+// 코스 주제 라벨 + 코스에 없는 기존 카테고리 fallback
 const CATEGORY_LABELS: Record<string, string> = {
-  greedy: 'Greedy',
-  dp: 'DP',
-  graph: 'Graph',
+  ...COURSE_TOPIC_LABELS,
+  // 코스에 없는 카테고리 (기존 문제용)
   tree: 'Tree',
-  sorting: 'Sorting',
-  search: 'Search',
   'number-theory': 'Number Theory',
-  combinatorics: 'Combinatorics',
-  'data-structures': 'Data Structures',
   geometry: 'Geometry',
 };
 
@@ -141,8 +143,8 @@ export default function LibraryScreen() {
     submitSearch,
     activeCategory,
     setActiveCategory,
-    activeDifficulty,
-    setActiveDifficulty,
+    activeCourseLevel,
+    setActiveCourseLevel,
     refresh,
   } = useLibraryData();
   const { bookmarkedIds, toggle: toggleBookmark, refresh: refreshBookmarks } = useBookmarks();
@@ -278,15 +280,15 @@ export default function LibraryScreen() {
         ))}
       </ScrollView>
 
-      {/* Difficulty Filter */}
+      {/* Level Filter (입문/기초/중급/실전) */}
       <View style={styles.diffFilterRow}>
-        {([null, 'easy', 'medium', 'hard'] as const).map((d) => {
-          const label = d === null ? 'All' : d === 'easy' ? 'Easy' : d === 'medium' ? 'Medium' : 'Hard';
-          const isActive = activeDifficulty === d;
+        {([null, 'beginner', 'basic', 'intermediate', 'advanced'] as const).map((d) => {
+          const label = d === null ? 'All' : COURSE_LEVEL_LABELS[d];
+          const isActive = activeCourseLevel === d;
           return (
             <Pressable
               key={label}
-              onPress={() => setActiveDifficulty(d)}
+              onPress={() => setActiveCourseLevel(d)}
               style={[styles.diffFilterChip, isActive && styles.diffFilterChipActive]}
             >
               <Text style={[styles.diffFilterText, isActive && styles.diffFilterTextActive]}>
@@ -297,7 +299,7 @@ export default function LibraryScreen() {
         })}
       </View>
     </>
-  ), [search, submitSearch, categoryTabs, selectedCategoryKey, activeDifficulty, setSearch, setActiveDifficulty]);
+  ), [search, submitSearch, categoryTabs, selectedCategoryKey, activeCourseLevel, setSearch, setActiveCourseLevel]);
 
   const listFooter = useMemo(() => (
     <>
@@ -509,11 +511,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: COLORS.surfaceBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.04)',
   },
   cardTopRow: {
     flexDirection: 'row',

@@ -14,6 +14,10 @@ import {
   type ActivityDay,
   type LearningPathData,
 } from '@/src/services/homeService';
+import {
+  fetchRecommendation,
+} from '@/src/services/recommendationService';
+import type { RecommendationResult } from '@/src/lib/recommendation';
 
 interface HomeData {
   todaysProblem: TodaysProblem | null;
@@ -21,6 +25,7 @@ interface HomeData {
   activityGrid: ActivityDay[];
   totalSolved: number;
   learningPath: LearningPathData | null;
+  recommendation: RecommendationResult | null;
   isLoading: boolean;
   error: string | null;
   refresh: () => void;
@@ -32,6 +37,7 @@ export function useHomeData(): HomeData {
   const [activityGrid, setActivityGrid] = useState<ActivityDay[]>([]);
   const [totalSolved, setTotalSolved] = useState(0);
   const [learningPath, setLearningPath] = useState<LearningPathData | null>(null);
+  const [recommendation, setRecommendation] = useState<RecommendationResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,12 +58,17 @@ export function useHomeData(): HomeData {
       setActivityGrid(activity);
       setTotalSolved(solved);
 
-      // Learning Path는 실패해도 나머지에 영향 없도록 분리
+      // Learning Path + Recommendation 은 실패해도 나머지에 영향 없도록 분리
       try {
-        const lp = await fetchLearningPath();
+        const [lp, rec] = await Promise.all([
+          fetchLearningPath(),
+          fetchRecommendation(),
+        ]);
         setLearningPath(lp);
+        setRecommendation(rec);
       } catch {
         setLearningPath(null);
+        setRecommendation(null);
       }
     } catch (err: any) {
       setError(err.message ?? 'Failed to load home data');
@@ -68,5 +79,5 @@ export function useHomeData(): HomeData {
 
   useEffect(() => { load(); }, [load]);
 
-  return { todaysProblem, streak, activityGrid, totalSolved, learningPath, isLoading, error, refresh: load };
+  return { todaysProblem, streak, activityGrid, totalSolved, learningPath, recommendation, isLoading, error, refresh: load };
 }

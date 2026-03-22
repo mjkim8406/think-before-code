@@ -18,6 +18,12 @@ import { TREE_V2 } from './tree';
 import { GEOMETRY_V2 } from './geometry';
 import { GRAPH_V2 } from './graph';
 
+// ── 코스 대표 문제 (레벨별 원본 문제) ──────────────────────
+import { COURSE_DATA_STRUCTURES } from './course-data-structures';
+import { COURSE_GRAPH } from './course-graph';
+import { COURSE_DP } from './course-dp';
+import { COURSE_GREEDY } from './course-greedy';
+
 // ── 카테고리별 export (개별 시딩 시 사용) ───────────────────
 export { GREEDY_V2 } from './greedy';
 export { DP_V2 } from './dp';
@@ -29,6 +35,10 @@ export { NUMBER_THEORY_V2 } from './number-theory';
 export { TREE_V2 } from './tree';
 export { GEOMETRY_V2 } from './geometry';
 export { GRAPH_V2 } from './graph';
+export { COURSE_DATA_STRUCTURES } from './course-data-structures';
+export { COURSE_GRAPH } from './course-graph';
+export { COURSE_DP } from './course-dp';
+export { COURSE_GREEDY } from './course-greedy';
 
 // ── 전체 통합 (시딩 시 사용) ────────────────────────────────
 export const ALL_PROBLEMS_V2: ProblemV2[] = [
@@ -42,6 +52,11 @@ export const ALL_PROBLEMS_V2: ProblemV2[] = [
   ...TREE_V2,
   ...GEOMETRY_V2,
   ...GRAPH_V2,
+  // 코스 대표 문제
+  ...COURSE_DATA_STRUCTURES,
+  ...COURSE_GRAPH,
+  ...COURSE_DP,
+  ...COURSE_GREEDY,
 ];
 
 // 중복 ID 검증

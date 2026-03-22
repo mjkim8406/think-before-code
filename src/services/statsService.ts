@@ -36,10 +36,11 @@ export interface DailyActivity {
   count: number;
 }
 
-export interface DifficultyCount {
-  easy: number;
-  medium: number;
-  hard: number;
+export interface CourseLevelCount {
+  beginner: number;
+  basic: number;
+  intermediate: number;
+  advanced: number;
 }
 
 export interface StepAccuracy {
@@ -183,14 +184,13 @@ export async function fetchCategoryMastery(): Promise<CategoryMasteryItem[]> {
 /**
  * 컨셉별 마스터리 — 태그 기반 상세 (모달용)
  */
-export async function fetchConceptMastery(limit = 6): Promise<ConceptMasteryItem[]> {
+export async function fetchConceptMastery(): Promise<ConceptMasteryItem[]> {
   const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('user_concept_stats')
     .select('concept_tag, problems_solved, total_score')
     .eq('user_id', userId)
-    .order('problems_solved', { ascending: false })
-    .limit(limit);
+    .order('problems_solved', { ascending: false });
 
   if (error) throw new Error(`Concept mastery failed: ${error.message}`);
 
@@ -374,12 +374,11 @@ export async function fetchSolvedProblems(): Promise<SolvedProblemItem[]> {
 }
 
 /**
- * 난이도 분포 (완료된 문제 기준)
+ * 코스 레벨 분포 (완료된 문제 기준)
  */
-export async function fetchDifficultyDistribution(): Promise<DifficultyCount> {
+export async function fetchCourseLevelDistribution(): Promise<CourseLevelCount> {
   const userId = await getCurrentUserId();
 
-  // 완료 세션의 problem_id 가져오기
   const { data: sessions, error: sessErr } = await supabase
     .from('training_sessions')
     .select('problem_id')
@@ -389,18 +388,20 @@ export async function fetchDifficultyDistribution(): Promise<DifficultyCount> {
   if (sessErr) throw new Error(sessErr.message);
 
   const problemIds = [...new Set((sessions ?? []).map((s) => s.problem_id))];
-  if (problemIds.length === 0) return { easy: 0, medium: 0, hard: 0 };
+  if (problemIds.length === 0) return { beginner: 0, basic: 0, intermediate: 0, advanced: 0 };
 
   const { data: problems, error: probErr } = await supabase
     .from('problems')
-    .select('difficulty')
+    .select('course_level')
     .in('id', problemIds);
 
   if (probErr) throw new Error(probErr.message);
 
-  const counts: DifficultyCount = { easy: 0, medium: 0, hard: 0 };
+  const counts: CourseLevelCount = { beginner: 0, basic: 0, intermediate: 0, advanced: 0 };
   (problems ?? []).forEach((p) => {
-    counts[p.difficulty as keyof DifficultyCount]++;
+    if (p.course_level && p.course_level in counts) {
+      counts[p.course_level as keyof CourseLevelCount]++;
+    }
   });
 
   return counts;

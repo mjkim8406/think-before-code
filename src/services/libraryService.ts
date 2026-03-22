@@ -4,13 +4,18 @@
 
 import { supabase } from '@/src/lib/supabase';
 import { getCurrentUserId } from './trainingService';
+import { problemToCourseTopic } from '@/src/data/coursePaths';
+import type { CourseLevel } from '@/src/data/coursePaths';
 
 export interface LibraryProblemRow {
   id: string;
   title: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  courseLevel: CourseLevel | null;
   domain: string;
   category: string;
+  /** 코스 주제 (category + tags 기반 자동 매핑) */
+  courseTopic: string | null;
   summary: string;
   tags: string[];
 }
@@ -21,34 +26,39 @@ export interface LibraryProblemRow {
 export async function fetchAllProblems(): Promise<LibraryProblemRow[]> {
   const { data, error } = await supabase
     .from('problems')
-    .select('id, title, difficulty, domain, category, summary, tags')
+    .select('id, title, difficulty, course_level, domain, category, summary, tags')
     .eq('is_active', true)
     .order('title', { ascending: true })
     .limit(500);
 
   if (error) throw new Error(`Problems fetch failed: ${error.message}`);
-  return (data ?? []) as LibraryProblemRow[];
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    courseLevel: row.course_level ?? null,
+    courseTopic: problemToCourseTopic(row.category, row.tags),
+  })) as LibraryProblemRow[];
 }
 
 /**
  * 클라이언트 사이드 필터링
- * - category: 파일 분류 기준 (dp, greedy, graph 등) — 카테고리 탭용
- * - difficulty: easy/medium/hard
+ * - category: courseTopic 기반 (hash, stack-queue, dp 등) 또는 DB category fallback
+ * - courseLevel: beginner/basic/intermediate/advanced
  * - search: 제목/요약/도메인/태그 텍스트 검색
  */
 export function filterProblems(
   all: LibraryProblemRow[],
-  opts?: { search?: string; category?: string; difficulty?: string },
+  opts?: { search?: string; category?: string; courseLevel?: string },
 ): LibraryProblemRow[] {
   let result = all;
 
   if (opts?.category) {
     const cat = opts.category.toLowerCase();
-    result = result.filter((p) => p.category === cat);
+    // courseTopic으로 먼저 매칭, 없으면 DB category로 fallback
+    result = result.filter((p) => p.courseTopic === cat || p.category === cat);
   }
 
-  if (opts?.difficulty) {
-    result = result.filter((p) => p.difficulty === opts.difficulty);
+  if (opts?.courseLevel) {
+    result = result.filter((p) => p.courseLevel === opts.courseLevel);
   }
 
   if (opts?.search) {
@@ -81,12 +91,28 @@ export async function fetchSolvedProblemIds(): Promise<Set<string>> {
 }
 
 /**
- * 카테고리 목록 + 문제 수 추출
+ * 카테고리 목록 + 문제 수 추출 (코스 주제 기반)
+ * courseTopic이 있으면 그것으로, 없으면 DB category로 분류
  */
 export function extractCategories(problems: LibraryProblemRow[]): { key: string; count: number }[] {
   const map = new Map<string, number>();
-  problems.forEach((p) => map.set(p.category, (map.get(p.category) ?? 0) + 1));
+  problems.forEach((p) => {
+    const key = p.courseTopic ?? p.category;
+    map.set(key, (map.get(key) ?? 0) + 1);
+  });
+  // 코스 순서대로 정렬 (코스에 없는건 뒤로)
+  const courseOrder = [
+    'hash', 'stack-queue', 'sort', 'brute-force', 'dfs-bfs',
+    'binary-search', 'heap', 'greedy', 'dp', 'graph',
+  ];
   return Array.from(map.entries())
     .map(([key, count]) => ({ key, count }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => {
+      const aIdx = courseOrder.indexOf(a.key);
+      const bIdx = courseOrder.indexOf(b.key);
+      if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
+      if (aIdx >= 0) return -1;
+      if (bIdx >= 0) return 1;
+      return b.count - a.count;
+    });
 }
