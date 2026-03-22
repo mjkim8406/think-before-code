@@ -91,7 +91,7 @@ async function handleFinish() {
 
   // 1. 세션 저장
   await sessionService.saveSession({
-    userId: TEMP_USER_ID,
+    userId: getCurrentUserId(),
     problemId: state.problemId,
     ...state,
     conceptMatched,
@@ -101,11 +101,11 @@ async function handleFinish() {
 
   // 2. 약한 개념 업데이트
   if (!conceptMatched) {
-    await weakConceptService.incrementMiss(TEMP_USER_ID, problem.conceptTags);
+    await weakConceptService.incrementMiss(getCurrentUserId(), problem.conceptTags);
   }
 
   // 3. 스트릭 업데이트
-  await streakService.updateStreak(TEMP_USER_ID);
+  await streakService.updateStreak(getCurrentUserId());
 
   // 4. 로컬 상태 초기화
   dispatch({ type: 'RESET' });

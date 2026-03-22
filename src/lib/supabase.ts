@@ -14,6 +14,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
-
-// Temporary: hardcoded user ID for MVP (no auth yet)
-export const TEMP_USER_ID = '00000000-000000000001';
