@@ -45,8 +45,10 @@ export default function LoginScreen() {
         {/* Logo */}
         <View style={styles.logoSection}>
           <View style={styles.logoRow}>
-            <Text style={styles.logoBracket}>&lt;</Text>
-            <Text style={styles.logoArrows}>&gt;&gt;&gt;</Text>
+            <Text style={[styles.logoCh, { color: COLORS.green800 }]}>&lt;</Text>
+            <Text style={[styles.logoCh, { color: COLORS.green600 }]}>&gt;</Text>
+            <Text style={[styles.logoCh, { color: COLORS.green500 }]}>&gt;</Text>
+            <Text style={[styles.logoCh, { color: COLORS.green400 }]}>&gt;</Text>
           </View>
           <Text style={styles.heroTitle}>
             Think<Text style={styles.heroDot}>.</Text>
@@ -140,20 +142,13 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 1,
     marginBottom: 8,
   },
-  logoBracket: {
+  logoCh: {
     fontSize: 32,
     fontFamily: FONTS.black,
-    color: COLORS.green800,
     letterSpacing: -1,
-  },
-  logoArrows: {
-    fontSize: 32,
-    fontFamily: FONTS.black,
-    color: COLORS.green500,
-    letterSpacing: -3,
+    marginRight: -2,
   },
   heroTitle: {
     fontSize: 64,

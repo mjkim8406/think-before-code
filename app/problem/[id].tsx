@@ -126,25 +126,26 @@ export default function ProblemDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Feather name="arrow-left" size={24} color={COLORS.text} />
-        </Pressable>
-        <Pressable onPress={() => toggleBookmark(problem.id)} hitSlop={12}>
-          <Ionicons
-            name={isBookmarked(problem.id) ? 'bookmark' : 'bookmark-outline'}
-            size={22}
-            color={isBookmarked(problem.id) ? COLORS.green800 : COLORS.sand300}
-          />
-        </Pressable>
-      </View>
+      <View style={styles.screen}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Feather name="arrow-left" size={24} color={COLORS.text} />
+          </Pressable>
+          <Pressable onPress={() => toggleBookmark(problem.id)} hitSlop={12}>
+            <Ionicons
+              name={isBookmarked(problem.id) ? 'bookmark' : 'bookmark-outline'}
+              size={22}
+              color={isBookmarked(problem.id) ? COLORS.green800 : COLORS.sand300}
+            />
+          </Pressable>
+        </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Difficulty + Domain */}
         <View style={styles.topRow}>
           <View style={[styles.diffBadge, { backgroundColor: diffConfig.bg }]}>
@@ -213,15 +214,16 @@ export default function ProblemDetailScreen() {
         )}
       </ScrollView>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Pressable
-          style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
-          onPress={handleStartTraining}
-        >
-          <Text style={styles.startBtnText}>학습 시작</Text>
-          <Feather name="arrow-right" size={16} color={COLORS.white} />
-        </Pressable>
+        {/* Footer — StepShell과 동일 구조 */}
+        <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
+            onPress={handleStartTraining}
+          >
+            <Text style={styles.startBtnText}>학습 시작</Text>
+            <Feather name="arrow-right" size={16} color={COLORS.white} />
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -229,9 +231,10 @@ export default function ProblemDetailScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
+  screen: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 24, paddingBottom: 120 },
+  content: { paddingHorizontal: 24, paddingBottom: 24 },
 
   header: {
     flexDirection: 'row',
@@ -375,14 +378,9 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
     paddingVertical: 16,
+    paddingHorizontal: 24,
     paddingBottom: 36,
-    backgroundColor: COLORS.background,
   },
   startBtn: {
     flexDirection: 'row',

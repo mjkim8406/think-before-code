@@ -40,19 +40,25 @@ export function useHomeData(): HomeData {
       setIsLoading(true);
       setError(null);
 
-      const [problem, streakData, activity, solved, lp] = await Promise.all([
+      const [problem, streakData, activity, solved] = await Promise.all([
         fetchTodaysProblem(),
         fetchUserStreak(),
         fetchActivityGrid(),
         fetchTotalSolvedCount(),
-        fetchLearningPath(),
       ]);
 
       setTodaysProblem(problem);
       setStreak(streakData);
       setActivityGrid(activity);
       setTotalSolved(solved);
-      setLearningPath(lp);
+
+      // Learning Path는 실패해도 나머지에 영향 없도록 분리
+      try {
+        const lp = await fetchLearningPath();
+        setLearningPath(lp);
+      } catch {
+        setLearningPath(null);
+      }
     } catch (err: any) {
       setError(err.message ?? 'Failed to load home data');
     } finally {

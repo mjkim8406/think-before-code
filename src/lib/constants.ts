@@ -105,8 +105,10 @@ export const COLORS = {
   // Green shades
   green50: '#F0FDF4',
   green100: '#DCFCE7',
+  green300: '#86EFAC',
   green400: '#4ADE80',
   green500: '#22C55E',
+  green600: '#16A34A',
   green800: '#14532D',
   green900: '#0D3B1E',
   // Sand shades

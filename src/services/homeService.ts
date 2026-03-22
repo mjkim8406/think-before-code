@@ -13,6 +13,7 @@ export interface TodaysProblem {
   summary: string;
   tags: string[];
   source_url: string | null;
+  completedToday: boolean;
 }
 
 export interface StreakData {
@@ -32,20 +33,34 @@ export interface ActivityDay {
  * assign_daily_problem RPC → problem details fetch
  */
 export async function fetchTodaysProblem(): Promise<TodaysProblem | null> {
-  // RPC 호출로 오늘의 문제 배정 (이미 있으면 기존 반환)
+  const userId = await getCurrentUserId();
+
   const { data: problemId, error: rpcErr } = await supabase.rpc('assign_daily_problem');
   if (rpcErr) throw new Error(`Daily assign failed: ${rpcErr.message}`);
-  if (!problemId) return null; // 다 풀었음
+  if (!problemId) return null;
 
-  // 문제 상세 조회
-  const { data, error } = await supabase
-    .from('problems')
-    .select('id, title, difficulty, domain, summary, tags, source_url')
-    .eq('id', problemId)
-    .single();
+  // 문제 상세 + 오늘 완료 여부 병렬 조회
+  const [problemRes, completedRes] = await Promise.all([
+    supabase
+      .from('problems')
+      .select('id, title, difficulty, domain, summary, tags, source_url')
+      .eq('id', problemId)
+      .single(),
+    supabase
+      .from('training_sessions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('problem_id', problemId)
+      .eq('status', 'completed')
+      .limit(1),
+  ]);
 
-  if (error) throw new Error(`Problem fetch failed: ${error.message}`);
-  return data as TodaysProblem;
+  if (problemRes.error) throw new Error(`Problem fetch failed: ${problemRes.error.message}`);
+
+  return {
+    ...(problemRes.data as Omit<TodaysProblem, 'completedToday'>),
+    completedToday: (completedRes.data?.length ?? 0) > 0,
+  };
 }
 
 /**
@@ -94,93 +109,122 @@ export async function fetchActivityGrid(): Promise<ActivityDay[]> {
 }
 
 /**
- * Learning Path — 유저의 concept_stats 기반 추천 카테고리
+ * Learning Path — DB category 기반 추천
+ * Library 카테고리와 동일한 기준 (dp, greedy, graph, tree, sorting, search, ...)
  */
 export interface LearningPathData {
-  conceptTag: string;
+  conceptTag: string;   // DB category key (library 필터 연동용)
   label: string;
   problemsSolved: number;
   totalProblems: number;
   averageScore: number;
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  dp: 'Dynamic Programming',
+  greedy: 'Greedy',
+  graph: 'Graph',
+  tree: 'Tree',
+  sorting: 'Sorting',
+  search: 'Search',
+  'number-theory': 'Number Theory',
+  combinatorics: 'Combinatorics',
+  'data-structures': 'Data Structures',
+  geometry: 'Geometry',
+};
+
 export async function fetchLearningPath(): Promise<LearningPathData | null> {
   const userId = await getCurrentUserId();
 
-  // 유저가 가장 많이 푼 컨셉 태그 (또는 가장 약한 태그)
-  const { data: conceptStats, error: csErr } = await supabase
-    .from('user_concept_stats')
-    .select('concept_tag, problems_solved, total_score')
-    .eq('user_id', userId)
-    .order('problems_solved', { ascending: false })
-    .limit(5);
+  // 1) 카테고리별 전체 문제 수 조회
+  const { data: allProblems, error: pErr } = await supabase
+    .from('problems')
+    .select('id, category')
+    .eq('is_active', true);
 
-  if (csErr) throw new Error(`Concept stats failed: ${csErr.message}`);
+  if (pErr) throw new Error(`Problems fetch failed: ${pErr.message}`);
+  if (!allProblems || allProblems.length === 0) return null;
 
-  if (!conceptStats || conceptStats.length === 0) {
-    // 아직 풀이 기록 없음 → 기본 추천
-    const { count } = await supabase
-      .from('problems')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true)
-      .contains('tags', ['dynamic-programming']);
-
-    return {
-      conceptTag: 'dynamic-programming',
-      label: 'Dynamic Programming',
-      problemsSolved: 0,
-      totalProblems: count ?? 0,
-      averageScore: 0,
-    };
+  // 카테고리별 전체 수 집계
+  const categoryTotal = new Map<string, number>();
+  for (const p of allProblems) {
+    categoryTotal.set(p.category, (categoryTotal.get(p.category) ?? 0) + 1);
   }
 
-  // 가장 약한 컨셉 (평균 점수가 가장 낮은 것) 을 학습 추천
-  let weakest = conceptStats[0];
-  let lowestAvg = Infinity;
-  for (const stat of conceptStats) {
-    const avg = stat.problems_solved > 0
-      ? Number(stat.total_score) / stat.problems_solved
-      : 0;
-    if (avg < lowestAvg) {
-      lowestAvg = avg;
-      weakest = stat;
+  // 2) 유저가 완료한 문제의 카테고리별 수 + 점수
+  const { data: completedSessions, error: sErr } = await supabase
+    .from('training_sessions')
+    .select('problem_id, total_score')
+    .eq('user_id', userId)
+    .eq('status', 'completed');
+
+  if (sErr) throw new Error(`Sessions fetch failed: ${sErr.message}`);
+
+  // problem_id → category 맵
+  const idToCategory = new Map<string, string>();
+  for (const p of allProblems) {
+    idToCategory.set(p.id, p.category);
+  }
+
+  // 카테고리별 풀이 수 & 총점 집계
+  const categorySolved = new Map<string, { count: number; totalScore: number }>();
+  const solvedProblemIds = new Set<string>();
+  for (const s of completedSessions ?? []) {
+    // 같은 문제 중복 풀이는 1회로 카운트
+    if (solvedProblemIds.has(s.problem_id)) continue;
+    solvedProblemIds.add(s.problem_id);
+
+    const cat = idToCategory.get(s.problem_id);
+    if (!cat) continue;
+    const prev = categorySolved.get(cat) ?? { count: 0, totalScore: 0 };
+    categorySolved.set(cat, {
+      count: prev.count + 1,
+      totalScore: prev.totalScore + (s.total_score ?? 0),
+    });
+  }
+
+  // 3) 가장 추천할 카테고리 선택 (아직 안 푼 문제가 많고, 평균 점수가 낮은 것)
+  let bestCategory: string | null = null;
+  let bestScore = -Infinity;
+
+  for (const [cat, total] of categoryTotal) {
+    const solved = categorySolved.get(cat);
+    const solvedCount = solved?.count ?? 0;
+    const remaining = total - solvedCount;
+    if (remaining <= 0) continue; // 다 풀었으면 스킵
+
+    const avgScore = solvedCount > 0 ? (solved!.totalScore / solvedCount) : 0;
+    // 낮은 점수 + 남은 문제 많을수록 높은 우선순위
+    const priority = remaining * 10 + (100 - avgScore);
+    if (priority > bestScore) {
+      bestScore = priority;
+      bestCategory = cat;
     }
   }
 
-  // 해당 태그의 전체 문제 수
-  const { count: totalCount } = await supabase
-    .from('problems')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_active', true)
-    .contains('tags', [weakest.concept_tag]);
+  // 4) 아직 아무것도 안 풀었으면 가장 문제가 많은 카테고리 추천
+  if (!bestCategory) {
+    let maxCount = 0;
+    for (const [cat, total] of categoryTotal) {
+      if (total > maxCount) {
+        maxCount = total;
+        bestCategory = cat;
+      }
+    }
+  }
 
-  // 라벨 매핑
-  const CONCEPT_LABELS: Record<string, string> = {
-    'dynamic-programming': 'Dynamic Programming',
-    greedy: 'Greedy Algorithms',
-    graph: 'Graph Theory',
-    tree: 'Tree Structures',
-    sorting: 'Sorting & Searching',
-    'binary-search': 'Binary Search',
-    string: 'String Processing',
-    math: 'Mathematics',
-    'number-theory': 'Number Theory',
-    combinatorics: 'Combinatorics',
-    bfs: 'BFS Traversal',
-    dfs: 'DFS Traversal',
-    stack: 'Stack & Queue',
-    'two-pointer': 'Two Pointers',
-    'sliding-window': 'Sliding Window',
-    simulation: 'Simulation',
-  };
+  if (!bestCategory) return null;
+
+  const total = categoryTotal.get(bestCategory) ?? 0;
+  const solved = categorySolved.get(bestCategory);
 
   return {
-    conceptTag: weakest.concept_tag,
-    label: CONCEPT_LABELS[weakest.concept_tag] ?? weakest.concept_tag,
-    problemsSolved: weakest.problems_solved,
-    totalProblems: totalCount ?? 0,
-    averageScore: weakest.problems_solved > 0
-      ? Math.round(Number(weakest.total_score) / weakest.problems_solved)
+    conceptTag: bestCategory,
+    label: CATEGORY_LABELS[bestCategory] ?? bestCategory,
+    problemsSolved: solved?.count ?? 0,
+    totalProblems: total,
+    averageScore: solved && solved.count > 0
+      ? Math.round(solved.totalScore / solved.count)
       : 0,
   };
 }

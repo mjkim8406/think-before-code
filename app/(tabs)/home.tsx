@@ -5,7 +5,7 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  useWindowDimensions,
+  Image,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,32 +14,30 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS } from '@/src/lib/constants';
 import { useHomeData } from '@/src/hooks/useHomeData';
+import { useProfileData } from '@/src/hooks/useProfileData';
+import { useDailyGoal } from '@/src/hooks/useDailyGoal';
+import { getInsightForTags } from '@/src/lib/insightCards';
 import type { ActivityDay } from '@/src/services/homeService';
 
 // ─── Logo ──────────────────────────────────────────────────────────────────
 function LogoIcon() {
   return (
     <View style={logoStyles.wrap}>
-      <Text style={logoStyles.bracket}>&lt;</Text>
-      <Text style={logoStyles.arrows}>&gt;&gt;&gt;</Text>
+      <Text style={[logoStyles.ch, { color: COLORS.green800 }]}>&lt;</Text>
+      <Text style={[logoStyles.ch, { color: COLORS.green600 }]}>&gt;</Text>
+      <Text style={[logoStyles.ch, { color: COLORS.green500 }]}>&gt;</Text>
+      <Text style={[logoStyles.ch, { color: COLORS.green400 }]}>&gt;</Text>
     </View>
   );
 }
 const logoStyles = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: 1 },
-  bracket: {
+  wrap: { flexDirection: 'row', alignItems: 'center' },
+  ch: {
     fontSize: 26,
     fontFamily: FONTS.black,
-    color: COLORS.green800,
     letterSpacing: -1,
     lineHeight: 30,
-  },
-  arrows: {
-    fontSize: 26,
-    fontFamily: FONTS.black,
-    color: COLORS.green500,
-    letterSpacing: -3,
-    lineHeight: 30,
+    marginRight: -2,
   },
 });
 
@@ -156,11 +154,15 @@ function ActivityGrid({ activityDays }: { activityDays: ActivityDay[] }) {
 export default function HomeScreen() {
   const router = useRouter();
   const { todaysProblem, streak, activityGrid, totalSolved, learningPath, isLoading, error, refresh } = useHomeData();
+  const { profile, refresh: refreshProfile } = useProfileData();
+  const { goal: dailyGoal, enabled: goalEnabled, reload: reloadGoal } = useDailyGoal();
 
   // 탭 전환 시 데이터 새로고침
   useFocusEffect(
     React.useCallback(() => {
       refresh();
+      refreshProfile();
+      reloadGoal();
     }, [])
   );
 
@@ -187,9 +189,20 @@ export default function HomeScreen() {
         {/* Nav */}
         <View style={styles.nav}>
           <LogoIcon />
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>MJ</Text>
-          </View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/settings' as any)}
+            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+          >
+            {profile?.avatarUrl ? (
+              <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {profile?.displayName ? profile.displayName.slice(0, 2).toUpperCase() : 'U'}
+                </Text>
+              </View>
+            )}
+          </Pressable>
         </View>
 
         {/* Hero */}
@@ -203,7 +216,9 @@ export default function HomeScreen() {
         {/* Today's Problem Card */}
         {todaysProblem ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>TODAY'S PROBLEM</Text>
+            <Text style={styles.sectionLabel}>
+              TODAY'S PROBLEM{goalEnabled ? ` · 목표 ${dailyGoal}문제` : ''}
+            </Text>
             <View style={styles.problemCard}>
               <View style={styles.cardTopRow}>
                 <DiffBadge difficulty={todaysProblem.difficulty} />
@@ -218,13 +233,20 @@ export default function HomeScreen() {
                   </View>
                 ))}
               </View>
-              <Pressable
-                style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
-                onPress={handleStartTraining}
-              >
-                <Text style={styles.startBtnText}>Start Learning</Text>
-                <Feather name="arrow-right" size={16} color={COLORS.white} />
-              </Pressable>
+              {todaysProblem.completedToday ? (
+                <View style={styles.completedBanner}>
+                  <Feather name="check-circle" size={16} color={COLORS.green800} />
+                  <Text style={styles.completedText}>오늘의 문제 완료!</Text>
+                </View>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
+                  onPress={handleStartTraining}
+                >
+                  <Text style={styles.startBtnText}>Start Learning</Text>
+                  <Feather name="arrow-right" size={16} color={COLORS.white} />
+                </Pressable>
+              )}
             </View>
           </View>
         ) : (
@@ -239,27 +261,33 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Insight Card */}
-        <View style={styles.section}>
-          <View style={styles.insightCard}>
-            <View style={styles.insightTop}>
-              <Text style={styles.insightLabel}>INSIGHT</Text>
-              <Feather name="zap" size={14} color={COLORS.green500} />
+        {/* Insight Card — 오늘의 문제 태그 기반 알고리즘 설명 */}
+        {(() => {
+          const insight = getInsightForTags(
+            todaysProblem?.tags ?? [],
+            todaysProblem?.domain,
+          );
+          return (
+            <View style={styles.section}>
+              <View style={styles.insightCard}>
+                <View style={styles.insightTop}>
+                  <Text style={styles.insightLabel}>INSIGHT</Text>
+                  <Text style={{ fontSize: 14 }}>{insight.emoji}</Text>
+                </View>
+                <Text style={styles.insightTitle}>{insight.title}</Text>
+                <Text style={styles.insightDesc}>{insight.desc}</Text>
+              </View>
             </View>
-            <Text style={styles.insightTitle}>Algorithmic Patterns</Text>
-            <Text style={styles.insightDesc}>
-              Recognizing patterns is faster than memorizing solutions. Focus on the "why" behind each approach.
-            </Text>
-            <Pressable style={styles.insightArrow}>
-              <Feather name="arrow-right" size={16} color={COLORS.green800} />
-            </Pressable>
-          </View>
-        </View>
+          );
+        })()}
 
         {/* Current Streak Card */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>CURRENT STREAK</Text>
-          <View style={styles.streakCard}>
+          <Pressable
+            style={({ pressed }) => [styles.streakCard, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push('/(tabs)/stats' as any)}
+          >
             <View style={styles.streakHeader}>
               <View>
                 <Text style={styles.streakNumber}>{streak.currentStreak}</Text>
@@ -268,30 +296,53 @@ export default function HomeScreen() {
               <Text style={styles.streakBest}>Best: {streak.longestStreak} days</Text>
             </View>
             <View style={styles.dayRow}>
-              {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day, i) => {
-                const done = i < streak.currentStreak;
-                const isToday = i === streak.currentStreak;
-                return (
-                  <View key={day} style={styles.dayItem}>
-                    <View style={[
-                      styles.dayDot,
-                      done && styles.dayDotDone,
-                      isToday && styles.dayDotToday,
-                    ]}>
-                      {done && <Feather name="check" size={10} color={COLORS.white} />}
+              {(() => {
+                const labels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+                const now = new Date();
+                // JS getDay: 0=Sun. 월요일 기준 인덱스로 변환
+                const todayIdx = (now.getDay() + 6) % 7; // 0=Mon ... 6=Sun
+
+                // 이번 주 활동일 Set 만들기 (activityGrid에서)
+                const weekStart = new Date(now);
+                weekStart.setDate(now.getDate() - todayIdx);
+                weekStart.setHours(0, 0, 0, 0);
+
+                const activeDays = new Set<number>();
+                for (const day of activityGrid) {
+                  const d = new Date(day.date + 'T00:00:00');
+                  if (d >= weekStart && d <= now && day.count > 0) {
+                    activeDays.add((d.getDay() + 6) % 7);
+                  }
+                }
+
+                return labels.map((label, i) => {
+                  const done = activeDays.has(i);
+                  const isToday = i === todayIdx;
+                  return (
+                    <View key={label} style={styles.dayItem}>
+                      <View style={[
+                        styles.dayDot,
+                        done && styles.dayDotDone,
+                        isToday && !done && styles.dayDotToday,
+                      ]}>
+                        {done && <Feather name="check" size={10} color={COLORS.white} />}
+                      </View>
+                      <Text style={[styles.dayLabel, done && styles.dayLabelDone]}>{label}</Text>
                     </View>
-                    <Text style={[styles.dayLabel, done && styles.dayLabelDone]}>{day}</Text>
-                  </View>
-                );
-              })}
+                  );
+                });
+              })()}
             </View>
-          </View>
+          </Pressable>
         </View>
 
         {/* Problem History / Activity Grid */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>PROBLEM HISTORY</Text>
-          <View style={styles.activityCard}>
+          <Pressable
+            style={({ pressed }) => [styles.activityCard, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push('/(tabs)/stats?scrollTo=activity' as any)}
+          >
             <View style={styles.activityHeader}>
               <Text style={styles.activityCount}>{totalSolved}</Text>
               <Text style={styles.activityCountLabel}> problems solved</Text>
@@ -311,56 +362,64 @@ export default function HomeScreen() {
                 <Text style={styles.legendText}>Strong</Text>
               </View>
             </View>
-          </View>
+          </Pressable>
         </View>
 
         {/* Learning Path Card */}
-        {learningPath && (
-          <View style={[styles.section, { marginBottom: 8 }]}>
-            <Text style={styles.sectionLabel}>LEARNING PATH</Text>
-            <View style={styles.learningCard}>
-              <View style={styles.learningTop}>
-                <Text style={styles.learningBadge}>
-                  {learningPath.problemsSolved > 0 ? 'IN PROGRESS' : 'RECOMMENDED'}
-                </Text>
-                <Feather name="book" size={16} color="rgba(255,255,255,0.6)" />
-              </View>
-              <Text style={styles.learningTitle}>{learningPath.label}</Text>
-              <Text style={styles.learningDesc}>
-                {learningPath.problemsSolved} / {learningPath.totalProblems} problems solved
-                {learningPath.averageScore > 0 ? ` · Avg ${learningPath.averageScore}pts` : ''}
+        <View style={[styles.section, { marginBottom: 8 }]}>
+          <Text style={styles.sectionLabel}>LEARNING PATH</Text>
+          <Pressable
+            style={({ pressed }) => [styles.learningCard, pressed && { opacity: 0.9 }]}
+            onPress={() => {
+              const tag = learningPath?.conceptTag;
+              if (tag) {
+                router.push(`/(tabs)/library?category=${tag}` as any);
+              } else {
+                router.push('/(tabs)/library' as any);
+              }
+            }}
+          >
+            <View style={styles.learningTop}>
+              <Text style={styles.learningBadge}>
+                {learningPath && learningPath.problemsSolved > 0 ? 'IN PROGRESS' : 'RECOMMENDED'}
               </Text>
-              <View style={styles.learningProgressBg}>
-                <View
-                  style={[
-                    styles.learningProgressFill,
-                    {
-                      width: learningPath.totalProblems > 0
-                        ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}%`
-                        : '0%',
-                    },
-                  ]}
-                />
-              </View>
-              <View style={styles.learningFooter}>
-                <Text style={styles.learningProgress}>
-                  {learningPath.totalProblems > 0
-                    ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}% complete`
-                    : 'Start learning'}
+              <Feather name="book" size={16} color="rgba(255,255,255,0.6)" />
+            </View>
+            <Text style={styles.learningTitle}>
+              {learningPath?.label ?? 'Dynamic Programming'}
+            </Text>
+            <Text style={styles.learningDesc}>
+              {learningPath
+                ? `${learningPath.problemsSolved} / ${learningPath.totalProblems} problems solved${learningPath.averageScore > 0 ? ` · Avg ${learningPath.averageScore}pts` : ''}`
+                : '라이브러리에서 문제를 풀어보세요'}
+            </Text>
+            <View style={styles.learningProgressBg}>
+              <View
+                style={[
+                  styles.learningProgressFill,
+                  {
+                    width: learningPath && learningPath.totalProblems > 0
+                      ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}%`
+                      : '0%',
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.learningFooter}>
+              <Text style={styles.learningProgress}>
+                {learningPath && learningPath.totalProblems > 0
+                  ? `${Math.round((learningPath.problemsSolved / learningPath.totalProblems) * 100)}% complete`
+                  : 'Start learning'}
+              </Text>
+              <View style={styles.resumeBtn}>
+                <Text style={styles.resumeBtnText}>
+                  {learningPath && learningPath.problemsSolved > 0 ? 'Resume Path' : 'Start Path'}
                 </Text>
-                <Pressable
-                  style={styles.resumeBtn}
-                  onPress={() => router.push('/(tabs)/library' as any)}
-                >
-                  <Text style={styles.resumeBtnText}>
-                    {learningPath.problemsSolved > 0 ? 'Resume Path' : 'Start Path'}
-                  </Text>
-                  <Feather name="arrow-right" size={12} color={COLORS.green800} />
-                </Pressable>
+                <Feather name="arrow-right" size={12} color={COLORS.green800} />
               </View>
             </View>
-          </View>
-        )}
+          </Pressable>
+        </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -389,6 +448,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.green800,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   avatarText: {
     fontSize: 14,
@@ -521,6 +585,22 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: COLORS.white,
     letterSpacing: -0.3,
+  },
+  completedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: COLORS.green50,
+    borderWidth: 1,
+    borderColor: COLORS.green100,
+  },
+  completedText: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: COLORS.green800,
   },
 
   // Insight Card

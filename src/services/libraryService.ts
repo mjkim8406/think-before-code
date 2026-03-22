@@ -10,40 +10,59 @@ export interface LibraryProblemRow {
   title: string;
   difficulty: 'easy' | 'medium' | 'hard';
   domain: string;
+  category: string;
   summary: string;
   tags: string[];
 }
 
 /**
- * 문제 목록 조회 (필터/검색 지원)
+ * 전체 활성 문제 목록 조회 (클라이언트 필터링용)
  */
-export async function fetchProblems(opts?: {
-  search?: string;
-  tag?: string;      // category filter by tag name
-  limit?: number;
-  offset?: number;
-}): Promise<LibraryProblemRow[]> {
-  let query = supabase
+export async function fetchAllProblems(): Promise<LibraryProblemRow[]> {
+  const { data, error } = await supabase
     .from('problems')
-    .select('id, title, difficulty, domain, summary, tags')
+    .select('id, title, difficulty, domain, category, summary, tags')
     .eq('is_active', true)
-    .order('title', { ascending: true });
+    .order('title', { ascending: true })
+    .limit(500);
 
-  if (opts?.search) {
-    query = query.or(`title.ilike.%${opts.search}%,summary.ilike.%${opts.search}%,domain.ilike.%${opts.search}%`);
-  }
-
-  if (opts?.tag) {
-    query = query.contains('tags', [opts.tag.toLowerCase()]);
-  }
-
-  const limit = opts?.limit ?? 50;
-  const offset = opts?.offset ?? 0;
-  query = query.range(offset, offset + limit - 1);
-
-  const { data, error } = await query;
   if (error) throw new Error(`Problems fetch failed: ${error.message}`);
   return (data ?? []) as LibraryProblemRow[];
+}
+
+/**
+ * 클라이언트 사이드 필터링
+ * - category: 파일 분류 기준 (dp, greedy, graph 등) — 카테고리 탭용
+ * - difficulty: easy/medium/hard
+ * - search: 제목/요약/도메인/태그 텍스트 검색
+ */
+export function filterProblems(
+  all: LibraryProblemRow[],
+  opts?: { search?: string; category?: string; difficulty?: string },
+): LibraryProblemRow[] {
+  let result = all;
+
+  if (opts?.category) {
+    const cat = opts.category.toLowerCase();
+    result = result.filter((p) => p.category === cat);
+  }
+
+  if (opts?.difficulty) {
+    result = result.filter((p) => p.difficulty === opts.difficulty);
+  }
+
+  if (opts?.search) {
+    const q = opts.search.toLowerCase();
+    result = result.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.summary.toLowerCase().includes(q) ||
+        p.domain.toLowerCase().includes(q) ||
+        p.tags.some((t) => t.toLowerCase().includes(q)),
+    );
+  }
+
+  return result;
 }
 
 /**
@@ -62,33 +81,12 @@ export async function fetchSolvedProblemIds(): Promise<Set<string>> {
 }
 
 /**
- * 전체 활성 문제 수
+ * 카테고리 목록 + 문제 수 추출
  */
-export async function fetchTotalProblemCount(): Promise<number> {
-  const { count, error } = await supabase
-    .from('problems')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_active', true);
-
-  if (error) throw new Error(`Problem count failed: ${error.message}`);
-  return count ?? 0;
-}
-
-/**
- * 모든 고유 태그 목록 (카테고리 탭용)
- */
-export async function fetchAllTags(): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('problems')
-    .select('tags')
-    .eq('is_active', true);
-
-  if (error) throw new Error(`Tags fetch failed: ${error.message}`);
-
-  const tagSet = new Set<string>();
-  (data ?? []).forEach((row) => {
-    (row.tags as string[]).forEach((t) => tagSet.add(t));
-  });
-
-  return Array.from(tagSet).sort();
+export function extractCategories(problems: LibraryProblemRow[]): { key: string; count: number }[] {
+  const map = new Map<string, number>();
+  problems.forEach((p) => map.set(p.category, (map.get(p.category) ?? 0) + 1));
+  return Array.from(map.entries())
+    .map(([key, count]) => ({ key, count }))
+    .sort((a, b) => b.count - a.count);
 }

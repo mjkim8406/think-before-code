@@ -175,6 +175,14 @@ function validateProblem(p: ProblemV2): ValidationError[] {
   return errors;
 }
 
+// ── 문제 ID → 카테고리 매핑 빌드 ────────────────────────────
+const ID_TO_CATEGORY = new Map<string, string>();
+for (const [catName, catProblems] of Object.entries(CATEGORY_MAP)) {
+  for (const p of catProblems) {
+    ID_TO_CATEGORY.set(p.id, catName);
+  }
+}
+
 // ── ProblemV2 → DB row 변환 ──────────────────────────────────
 function toDbRow(p: ProblemV2) {
   return {
@@ -184,6 +192,7 @@ function toDbRow(p: ProblemV2) {
     domain: p.domain,
     summary: p.summary,
     tags: p.tags,
+    category: ID_TO_CATEGORY.get(p.id) ?? 'uncategorized',
     input_type: p.input_type,
     output_type: p.output_type,
     constraints: p.constraints,

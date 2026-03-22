@@ -20,20 +20,22 @@ export function useProfileData(): ProfileHook {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       setError(null);
       const data = await fetchProfile();
       setProfile(data);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load profile');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  return { profile, isLoading, error, refresh: load };
+  const refresh = useCallback(() => load(true), [load]);
+
+  return { profile, isLoading, error, refresh };
 }

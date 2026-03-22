@@ -1,13 +1,16 @@
 /**
  * Library screen data hook
+ * - 서버에서 전체 문제 1회 로드
+ * - 카테고리/난이도/검색은 클라이언트 필터링
+ * - 검색은 submitSearch() 호출 시에만 반영
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
-  fetchProblems,
+  fetchAllProblems,
   fetchSolvedProblemIds,
-  fetchTotalProblemCount,
-  fetchAllTags,
+  filterProblems,
+  extractCategories,
   type LibraryProblemRow,
 } from '@/src/services/libraryService';
 
@@ -16,66 +19,89 @@ interface LibraryData {
   solvedIds: Set<string>;
   totalCount: number;
   solvedCount: number;
-  allTags: string[];
+  categories: { key: string; count: number }[];
   isLoading: boolean;
   error: string | null;
   search: string;
   setSearch: (s: string) => void;
-  activeTag: string | null;
-  setActiveTag: (t: string | null) => void;
+  submitSearch: () => void;
+  activeCategory: string | null;
+  setActiveCategory: (c: string | null) => void;
+  activeDifficulty: string | null;
+  setActiveDifficulty: (d: string | null) => void;
   refresh: () => void;
 }
 
 export function useLibraryData(): LibraryData {
-  const [problems, setProblems] = useState<LibraryProblemRow[]>([]);
+  const [allProblems, setAllProblems] = useState<LibraryProblemRow[]>([]);
   const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
-  const [totalCount, setTotalCount] = useState(0);
-  const [allTags, setAllTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [activeTag, setActiveTag] = useState<string | null>(null);
 
+  // 필터 상태
+  const [search, setSearch] = useState('');
+  const [committedSearch, setCommittedSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeDifficulty, setActiveDifficulty] = useState<string | null>(null);
+
+  // 검색 실행 (enter/버튼 누를 때만)
+  const submitSearch = useCallback(() => {
+    setCommittedSearch(search.trim());
+  }, [search]);
+
+  // search가 비워지면 committedSearch도 리셋 (X 버튼)
+  useEffect(() => {
+    if (search === '') setCommittedSearch('');
+  }, [search]);
+
+  // 서버 데이터 로드 (1회)
   const load = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const [probs, solved, count, tags] = await Promise.all([
-        fetchProblems({
-          search: search || undefined,
-          tag: activeTag ?? undefined,
-        }),
+      const [probs, solved] = await Promise.all([
+        fetchAllProblems(),
         fetchSolvedProblemIds(),
-        fetchTotalProblemCount(),
-        fetchAllTags(),
       ]);
 
-      setProblems(probs);
+      setAllProblems(probs);
       setSolvedIds(solved);
-      setTotalCount(count);
-      setAllTags(tags);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load library data');
     } finally {
       setIsLoading(false);
     }
-  }, [search, activeTag]);
+  }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // 클라이언트 필터링
+  const problems = useMemo(
+    () =>
+      filterProblems(allProblems, {
+        search: committedSearch || undefined,
+        category: activeCategory ?? undefined,
+        difficulty: activeDifficulty ?? undefined,
+      }),
+    [allProblems, committedSearch, activeCategory, activeDifficulty],
+  );
+
+  const categories = useMemo(() => extractCategories(allProblems), [allProblems]);
 
   return {
     problems,
     solvedIds,
-    totalCount,
+    totalCount: allProblems.length,
     solvedCount: solvedIds.size,
-    allTags,
+    categories,
     isLoading,
     error,
     search,
     setSearch,
-    activeTag,
-    setActiveTag,
+    submitSearch,
+    activeCategory,
+    setActiveCategory,
+    activeDifficulty,
+    setActiveDifficulty,
     refresh: load,
   };
 }

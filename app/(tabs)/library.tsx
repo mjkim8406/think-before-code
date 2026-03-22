@@ -6,16 +6,18 @@ import {
   FlatList,
   TextInput,
   Pressable,
+  Image,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS } from '@/src/lib/constants';
 import { useLibraryData } from '@/src/hooks/useLibraryData';
 import { useBookmarks } from '@/src/hooks/useBookmarks';
+import { useProfileData } from '@/src/hooks/useProfileData';
 import { getTagLabel } from '@/src/lib/tagLabels';
 import type { LibraryProblemRow } from '@/src/services/libraryService';
 
@@ -23,15 +25,16 @@ import type { LibraryProblemRow } from '@/src/services/libraryService';
 function LogoIcon() {
   return (
     <View style={logo.wrap}>
-      <Text style={logo.bracket}>&lt;</Text>
-      <Text style={logo.arrows}>&gt;&gt;&gt;</Text>
+      <Text style={[logo.ch, { color: COLORS.green800 }]}>&lt;</Text>
+      <Text style={[logo.ch, { color: COLORS.green600 }]}>&gt;</Text>
+      <Text style={[logo.ch, { color: COLORS.green500 }]}>&gt;</Text>
+      <Text style={[logo.ch, { color: COLORS.green400 }]}>&gt;</Text>
     </View>
   );
 }
 const logo = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: 1 },
-  bracket: { fontSize: 20, fontFamily: FONTS.black, color: COLORS.green800, letterSpacing: -1, lineHeight: 24 },
-  arrows: { fontSize: 20, fontFamily: FONTS.black, color: COLORS.green500, letterSpacing: -2, lineHeight: 24 },
+  wrap: { flexDirection: 'row', alignItems: 'center' },
+  ch: { fontSize: 26, fontFamily: FONTS.black, letterSpacing: -1, lineHeight: 30, marginRight: -2 },
 });
 
 // ─── Difficulty Badge ────────────────────────────────────────────────────
@@ -107,68 +110,84 @@ function ProblemCard({
 // ─── Category Tabs ───────────────────────────────────────────────────────
 const BOOKMARK_FILTER_KEY = '__bookmarked__';
 
-const DISPLAY_CATEGORIES: { key: string | null; label: string }[] = [
-  { key: null, label: 'All' },
-  { key: BOOKMARK_FILTER_KEY, label: 'Bookmarked' },
-  { key: 'greedy', label: 'Greedy' },
-  { key: 'dynamic-programming', label: 'DP' },
-  { key: 'graph', label: 'Graph' },
-  { key: 'tree', label: 'Tree' },
-  { key: 'sorting', label: 'Sorting' },
-  { key: 'binary-search', label: 'Search' },
-  { key: 'string', label: 'String' },
-  { key: 'math', label: 'Math' },
-  { key: 'number-theory', label: 'Number Theory' },
-  { key: 'combinatorics', label: 'Combinatorics' },
-  { key: 'bfs', label: 'BFS' },
-  { key: 'dfs', label: 'DFS' },
-];
+// key = DB category 컬럼 값 (파일명 기준)
+const CATEGORY_LABELS: Record<string, string> = {
+  greedy: 'Greedy',
+  dp: 'DP',
+  graph: 'Graph',
+  tree: 'Tree',
+  sorting: 'Sorting',
+  search: 'Search',
+  'number-theory': 'Number Theory',
+  combinatorics: 'Combinatorics',
+  'data-structures': 'Data Structures',
+  geometry: 'Geometry',
+};
 
 // ─── Main Screen ─────────────────────────────────────────────────────────
 export default function LibraryScreen() {
   const router = useRouter();
+  const { category: paramCategory } = useLocalSearchParams<{ category?: string }>();
   const {
     problems,
     solvedIds,
     totalCount,
     solvedCount,
-    allTags,
+    categories: dbCategories,
     isLoading,
     error,
     search,
     setSearch,
-    activeTag,
-    setActiveTag,
+    submitSearch,
+    activeCategory,
+    setActiveCategory,
+    activeDifficulty,
+    setActiveDifficulty,
     refresh,
   } = useLibraryData();
   const { bookmarkedIds, toggle: toggleBookmark, refresh: refreshBookmarks } = useBookmarks();
+  const { profile, refresh: refreshProfile } = useProfileData();
   const [showBookmarked, setShowBookmarked] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
       refresh();
       refreshBookmarks();
-    }, [])
+      refreshProfile();
+      // URL 파라미터로 카테고리 필터 적용 (홈 Learning Path에서 이동 시)
+      if (paramCategory) {
+        setActiveCategory(paramCategory);
+        setShowBookmarked(false);
+      }
+    }, [paramCategory])
   );
 
-  // 태그 기반 카테고리: allTags에서 실제 있는 것만 보여줌
-  const categories = useMemo(() => {
-    const tagSet = new Set(allTags);
-    return DISPLAY_CATEGORIES.filter(
-      (c) => c.key === null || c.key === BOOKMARK_FILTER_KEY || tagSet.has(c.key),
-    );
-  }, [allTags]);
+  // DB에서 온 카테고리 + All + Bookmarked 조합
+  const categoryTabs = useMemo(() => {
+    const tabs: { key: string | null; label: string; count?: number }[] = [
+      { key: null, label: 'All' },
+      { key: BOOKMARK_FILTER_KEY, label: 'Bookmarked' },
+    ];
+    for (const cat of dbCategories) {
+      tabs.push({
+        key: cat.key,
+        label: CATEGORY_LABELS[cat.key] ?? cat.key,
+        count: cat.count,
+      });
+    }
+    return tabs;
+  }, [dbCategories]);
 
   // 현재 선택된 카테고리 키 (UI 표시용)
-  const selectedCategoryKey = showBookmarked ? BOOKMARK_FILTER_KEY : activeTag;
+  const selectedCategoryKey = showBookmarked ? BOOKMARK_FILTER_KEY : activeCategory;
 
   function handleCategoryPress(key: string | null) {
     if (key === BOOKMARK_FILTER_KEY) {
       setShowBookmarked(true);
-      setActiveTag(null);
+      setActiveCategory(null);
     } else {
       setShowBookmarked(false);
-      setActiveTag(key);
+      setActiveCategory(key);
     }
   }
 
@@ -191,17 +210,25 @@ export default function LibraryScreen() {
       {/* Nav */}
       <View style={styles.nav}>
         <LogoIcon />
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>MJ</Text>
-        </View>
+        <Pressable
+          onPress={() => router.push('/(tabs)/settings' as any)}
+          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+        >
+          {profile?.avatarUrl ? (
+            <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {profile?.displayName ? profile.displayName.slice(0, 2).toUpperCase() : 'U'}
+              </Text>
+            </View>
+          )}
+        </Pressable>
       </View>
 
       {/* Header */}
       <View style={styles.headerSection}>
         <Text style={styles.headerTitle}>Library.</Text>
-        <Text style={styles.headerSubtitle}>
-          Explore and practice algorithmic challenges.
-        </Text>
       </View>
 
       {/* Search Bar */}
@@ -209,11 +236,18 @@ export default function LibraryScreen() {
         <Feather name="search" size={16} color={COLORS.figmaSubtext} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search problems or algorithms..."
+          placeholder="문제, 알고리즘, 태그 검색..."
           placeholderTextColor={COLORS.figmaSubtext}
           value={search}
           onChangeText={setSearch}
+          onSubmitEditing={submitSearch}
+          returnKeyType="search"
         />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Feather name="x" size={16} color={COLORS.figmaSubtext} />
+          </Pressable>
+        )}
       </View>
 
       {/* Category Tabs */}
@@ -223,9 +257,9 @@ export default function LibraryScreen() {
         contentContainerStyle={styles.categoryScroll}
         style={styles.categoryScrollWrap}
       >
-        {categories.map((cat) => (
+        {categoryTabs.map((cat) => (
           <Pressable
-            key={cat.label}
+            key={cat.key ?? 'all'}
             onPress={() => handleCategoryPress(cat.key)}
             style={[
               styles.categoryTab,
@@ -238,13 +272,32 @@ export default function LibraryScreen() {
                 selectedCategoryKey === cat.key && styles.categoryTabTextActive,
               ]}
             >
-              {cat.label}
+              {cat.label}{cat.count != null ? ` ${cat.count}` : ''}
             </Text>
           </Pressable>
         ))}
       </ScrollView>
+
+      {/* Difficulty Filter */}
+      <View style={styles.diffFilterRow}>
+        {([null, 'easy', 'medium', 'hard'] as const).map((d) => {
+          const label = d === null ? 'All' : d === 'easy' ? 'Easy' : d === 'medium' ? 'Medium' : 'Hard';
+          const isActive = activeDifficulty === d;
+          return (
+            <Pressable
+              key={label}
+              onPress={() => setActiveDifficulty(d)}
+              style={[styles.diffFilterChip, isActive && styles.diffFilterChipActive]}
+            >
+              <Text style={[styles.diffFilterText, isActive && styles.diffFilterTextActive]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </>
-  ), [search, categories, selectedCategoryKey]);
+  ), [search, submitSearch, categoryTabs, selectedCategoryKey, activeDifficulty, setSearch, setActiveDifficulty]);
 
   const listFooter = useMemo(() => (
     <>
@@ -344,6 +397,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
   avatarText: {
     fontSize: 14,
     fontFamily: FONTS.bold,
@@ -353,22 +411,15 @@ const styles = StyleSheet.create({
   // Header
   headerSection: {
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 48,
+    fontSize: 36,
     fontFamily: FONTS.black,
     color: COLORS.figmaDarkGreen,
-    letterSpacing: -1.2,
-    lineHeight: 52,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.figmaSubtext,
-    marginTop: 6,
-    letterSpacing: -0.2,
+    letterSpacing: -1,
+    lineHeight: 40,
   },
 
   // Search
@@ -416,6 +467,34 @@ const styles = StyleSheet.create({
   categoryTabTextActive: {
     color: COLORS.white,
     fontFamily: FONTS.semiBold,
+  },
+
+  // Difficulty Filter
+  diffFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    gap: 8,
+    marginBottom: 16,
+  },
+  diffFilterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: COLORS.sand100,
+    borderWidth: 1,
+    borderColor: COLORS.sand200,
+  },
+  diffFilterChipActive: {
+    backgroundColor: COLORS.figmaDarkGreen,
+    borderColor: COLORS.figmaDarkGreen,
+  },
+  diffFilterText: {
+    fontSize: 12,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.figmaSubtext,
+  },
+  diffFilterTextActive: {
+    color: COLORS.white,
   },
 
   // Problem Cards

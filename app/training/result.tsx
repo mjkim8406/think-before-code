@@ -55,14 +55,16 @@ export default function ResultScreen() {
     COLORS.error;
 
   const handleGoHome = () => {
-    dispatch({ type: 'RESET' });
     router.dismissAll();
+    setTimeout(() => dispatch({ type: 'RESET' }), 300);
   };
 
   const handleNextProblem = () => {
-    dispatch({ type: 'RESET' });
     router.dismissAll();
-    setTimeout(() => router.push('/(tabs)/library' as any), 100);
+    setTimeout(() => {
+      dispatch({ type: 'RESET' });
+      router.push('/(tabs)/library' as any);
+    }, 300);
   };
 
   return (
